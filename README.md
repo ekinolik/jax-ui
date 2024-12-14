@@ -6,7 +6,7 @@ A React-based dashboard for analyzing options data, featuring Delta Exposure (DE
 
 ### Installing Node.js and npm
 1. Download and install Node.js from [nodejs.org](https://nodejs.org/)
-1a. Install npm via brew: `brew install npm`
+    1. Install npm via brew: `brew install npm`
 2. npm (Node Package Manager) comes bundled with Node.js
 3. Verify installation: 
 
