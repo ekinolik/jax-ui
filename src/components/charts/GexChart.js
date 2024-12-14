@@ -362,9 +362,9 @@ const GexChartContent = ({ isFullscreen, dte, onDteChange }) => {
             axis: 'x',
             value: 0,
             lineStyle: { 
-              stroke: '#666',
-              strokeWidth: 1,
-              strokeDasharray: '4 4'
+              stroke: '#ff0000',
+              strokeWidth: 2,
+              strokeDasharray: 'none'
             },
             legend: '',
             legendPosition: null,
