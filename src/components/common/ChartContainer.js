@@ -80,6 +80,8 @@ const ChartContainer = ({ title, children, fullWidth }) => {
     <Container 
       $title={title}
       $isFullscreen={isFullscreen}
+      onClick={toggleFullscreen}
+      style={{ cursor: 'pointer' }}
     >
       <Title>
         {title}
