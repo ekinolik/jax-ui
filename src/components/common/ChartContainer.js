@@ -15,8 +15,8 @@ const Container = styled.div`
   background: white;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  padding: 1rem;
-  height: ${props => props.isFullscreen ? '100vh' : '500px'};
+  padding: 1rem 1rem 4.5rem 1rem;
+  height: ${props => props.isFullscreen ? '100vh' : '550px'};
   width: ${props => props.isFullscreen ? '100vw' : '100%'};
   position: ${props => props.isFullscreen ? 'fixed' : 'relative'};
   top: ${props => props.isFullscreen ? '0' : 'auto'};
