@@ -2,7 +2,7 @@ import React from 'react';
 import { ResponsiveBar } from '@nivo/bar';
 import ChartContainer from '../common/ChartContainer';
 
-const DexChart = () => {
+const DexChartContent = ({ isFullscreen }) => {
   const data = [
     {
       strike: "$100",
@@ -90,140 +90,220 @@ const DexChart = () => {
     }
   };
 
+  const theme = {
+    axis: {
+      ticks: {
+        text: {
+          fontSize: 12,
+          fill: '#666',
+          fontWeight: 500
+        }
+      },
+      legend: {
+        text: {
+          fontSize: 13,
+          fill: '#666',
+          fontWeight: 600
+        }
+      }
+    },
+    grid: {
+      line: {
+        stroke: '#e0e0e0',
+        strokeWidth: 1
+      }
+    },
+    tooltip: {
+      container: {
+        background: '#ffffff',
+        boxShadow: '0 3px 8px rgba(0,0,0,0.24)',
+        borderRadius: '6px',
+        padding: '12px',
+        fontSize: '12px',
+        border: 'none'
+      }
+    }
+  };
+
+  return (
+    <ResponsiveBar
+      data={transformedData}
+      keys={[
+        'calls_01-19-2024', 'calls_01-26-2024', 'calls_02-16-2024',
+        'puts_01-19-2024', 'puts_01-26-2024', 'puts_02-16-2024'
+      ]}
+      indexBy="strike"
+      layout="horizontal"
+      margin={isFullscreen ? 
+        { top: 40, right: 160, bottom: 100, left: 100 } : 
+        { top: 20, right: 130, bottom: 65, left: 80 }
+      }
+      valueScale={{ 
+        type: 'linear',
+        min: -maxValue,
+        max: maxValue,
+      }}
+      indexScale={{ 
+        type: 'band', 
+        round: true,
+      }}
+      enableGridY={false}
+      enableGridX={true}
+      gridXValues={[0]}
+      theme={{
+        ...theme,
+        axis: {
+          ...theme.axis,
+          ticks: {
+            ...theme.axis.ticks,
+            text: {
+              ...theme.axis.ticks.text,
+              fontSize: isFullscreen ? 14 : 12,
+            }
+          },
+          legend: {
+            ...theme.axis.legend,
+            text: {
+              ...theme.axis.legend.text,
+              fontSize: isFullscreen ? 15 : 13,
+            }
+          }
+        },
+      }}
+      colors={({ id }) => getColor(id)}
+      borderRadius={2}
+      borderWidth={1}
+      borderColor={{ from: 'color', modifiers: [['darker', 0.6]] }}
+      axisTop={null}
+      axisRight={null}
+      axisBottom={{
+        tickSize: 5,
+        tickPadding: 5,
+        tickRotation: 0,
+        legend: '',
+        legendPosition: 'middle',
+        legendOffset: 0,
+        format: v => Math.abs(v).toFixed(2)
+      }}
+      axisLeft={{
+        tickSize: 5,
+        tickPadding: 12,
+        tickRotation: 0,
+        legend: 'Strike Price',
+        legendPosition: 'middle',
+        legendOffset: -50
+      }}
+      enableLabel={false}
+      animate={true}
+      motionConfig="gentle"
+      tooltip={({ id, value, indexValue, data }) => {
+        const callsSum = Math.abs(
+          data["calls_01-19-2024"] + 
+          data["calls_01-26-2024"] + 
+          data["calls_02-16-2024"]
+        );
+        const putsSum = Math.abs(
+          data["puts_01-19-2024"] + 
+          data["puts_01-26-2024"] + 
+          data["puts_02-16-2024"]
+        );
+
+        return (
+          <div style={{
+            padding: '12px 16px',
+            background: '#ffffff',
+            boxShadow: '0 3px 8px rgba(0,0,0,0.24)',
+            borderRadius: '6px',
+            fontSize: '12px',
+            lineHeight: '1.6'
+          }}>
+            <div style={{ 
+              color: getColor(id), 
+              fontWeight: 600,
+              marginBottom: '8px'
+            }}>
+              Value: {Math.abs(value).toFixed(2)}
+            </div>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'auto auto',
+              gap: '8px 16px'
+            }}>
+              <div style={{ color: '#666' }}>Total Calls:</div>
+              <div style={{ fontWeight: 500 }}>{callsSum.toFixed(2)}</div>
+              <div style={{ color: '#666' }}>Total Puts:</div>
+              <div style={{ fontWeight: 500 }}>{putsSum.toFixed(2)}</div>
+            </div>
+          </div>
+        );
+      }}
+      markers={[
+        {
+          axis: 'x',
+          value: 0,
+          lineStyle: { 
+            stroke: '#666',
+            strokeWidth: 1,
+            strokeDasharray: '4 4'
+          },
+          legend: '',
+          legendPosition: null,
+        }
+      ]}
+      legends={[
+        {
+          dataFrom: 'keys',
+          anchor: 'top-right',
+          direction: 'column',
+          justify: false,
+          translateX: 120,
+          translateY: 0,
+          itemsSpacing: 2,
+          itemWidth: isFullscreen ? 180 : 140,
+          itemHeight: 16,
+          itemDirection: 'left-to-right',
+          itemOpacity: 1,
+          symbolSize: isFullscreen ? 14 : 12,
+          symbolShape: 'circle',
+          fontSize: isFullscreen ? 13 : 11,
+          itemTextColor: '#666',
+          effects: [
+            {
+              on: 'hover',
+              style: {
+                itemTextColor: '#000',
+                itemBackground: '#f5f5f5'
+              }
+            }
+          ],
+          data: [
+            {
+              id: 'calls_01-19-2024',
+              label: 'Exp: 01-19-2024',
+              color: getColor('calls_01-19-2024')
+            },
+            {
+              id: 'calls_01-26-2024',
+              label: 'Exp: 01-26-2024',
+              color: getColor('calls_01-26-2024')
+            },
+            {
+              id: 'calls_02-16-2024',
+              label: 'Exp: 02-16-2024',
+              color: getColor('calls_02-16-2024')
+            }
+          ]
+        }
+      ]}
+    />
+  );
+};
+
+// Wrapper component
+const DexChart = () => {
   return (
     <ChartContainer title="Delta Exposure (DEX) Chart">
-      <ResponsiveBar
-        data={transformedData}
-        keys={[
-          'calls_01-19-2024', 'calls_01-26-2024', 'calls_02-16-2024',
-          'puts_01-19-2024', 'puts_01-26-2024', 'puts_02-16-2024'
-        ]}
-        indexBy="strike"
-        layout="horizontal"
-        margin={{ top: 20, right: 130, bottom: 80, left: 80 }}
-        valueScale={{ 
-          type: 'linear',
-          min: -maxValue,
-          max: maxValue,
-        }}
-        indexScale={{ 
-          type: 'band', 
-          round: true,
-        }}
-        enableGridY={false}
-        colors={({ id }) => getColor(id)}
-        borderColor={{ from: 'color', modifiers: [['darker', 1.6]] }}
-        axisTop={null}
-        axisRight={null}
-        axisBottom={{
-          tickSize: 5,
-          tickPadding: 5,
-          tickRotation: 0,
-          legend: 'Delta Exposure',
-          legendPosition: 'middle',
-          legendOffset: 45,
-          format: v => Math.abs(v).toFixed(2)
-        }}
-        axisLeft={{
-          tickSize: 5,
-          tickPadding: 5,
-          tickRotation: 0,
-          legend: 'Strike Price',
-          legendPosition: 'middle',
-          legendOffset: -50
-        }}
-        enableLabel={false}
-        labelSkipWidth={12}
-        labelSkipHeight={12}
-        labelTextColor={{ from: 'color', modifiers: [['darker', 1.6]] }}
-        tooltip={({ id, value, indexValue, data }) => {
-          // Calculate sums for the strike price
-          const callsSum = Math.abs(
-            data["calls_01-19-2024"] + 
-            data["calls_01-26-2024"] + 
-            data["calls_02-16-2024"]
-          );
-          const putsSum = Math.abs(
-            data["puts_01-19-2024"] + 
-            data["puts_01-26-2024"] + 
-            data["puts_02-16-2024"]
-          );
-
-          return (
-            <div
-              style={{
-                padding: 12,
-                background: '#ffffff',
-                border: '1px solid #ccc',
-                borderRadius: '4px',
-              }}
-            >
-              <div style={{ color: getColor(id) }}>
-                <strong>Value: {Math.abs(value).toFixed(2)}</strong>
-              </div>
-              <div style={{ marginTop: 4 }}>
-                <div>Total Calls: {callsSum.toFixed(2)}</div>
-                <div>Total Puts: {putsSum.toFixed(2)}</div>
-              </div>
-            </div>
-          );
-        }}
-        animate={true}
-        motionStiffness={90}
-        motionDamping={15}
-        markers={[
-          {
-            axis: 'x',
-            value: 0,
-            lineStyle: { stroke: '#b0b0b0', strokeWidth: 1 },
-            legend: '',
-            legendPosition: null,
-          }
-        ]}
-        legends={[
-          {
-            dataFrom: 'keys',
-            anchor: 'top-right',
-            direction: 'column',
-            justify: false,
-            translateX: 120,
-            translateY: 0,
-            itemsSpacing: 1,
-            itemWidth: 140,
-            itemHeight: 16,
-            itemDirection: 'left-to-right',
-            itemOpacity: 0.85,
-            symbolSize: 12,
-            symbolShape: 'square',
-            fontSize: 11,
-            effects: [
-              {
-                on: 'hover',
-                style: {
-                  itemOpacity: 1
-                }
-              }
-            ],
-            data: [
-              {
-                id: 'calls_01-19-2024',
-                label: 'Exp: 01-19-2024',
-                color: getColor('calls_01-19-2024')
-              },
-              {
-                id: 'calls_01-26-2024',
-                label: 'Exp: 01-26-2024',
-                color: getColor('calls_01-26-2024')
-              },
-              {
-                id: 'calls_02-16-2024',
-                label: 'Exp: 02-16-2024',
-                color: getColor('calls_02-16-2024')
-              }
-            ]
-          }
-        ]}
-      />
+      <DexChartContent />
     </ChartContainer>
   );
 };

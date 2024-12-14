@@ -19,11 +19,21 @@ const MainContent = styled.div`
   flex: 1;
 `;
 
-const ChartGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
+const ContentArea = styled.div`
+  flex: 1;
+  display: flex;
+  flex-direction: column;
   gap: 20px;
   padding: 20px;
+`;
+
+const ChartRow = styled.div`
+  display: flex;
+  gap: 20px;
+  width: 100%;
+`;
+
+const ChartColumn = styled.div`
   flex: 1;
 `;
 
@@ -33,11 +43,19 @@ function App() {
       <Header />
       <MainContent>
         <Sidebar />
-        <ChartGrid>
-          <PriceChart />
-          <DexChart />
-          <GexChart />
-        </ChartGrid>
+        <ContentArea>
+          <ChartRow>
+            <PriceChart />
+          </ChartRow>
+          <ChartRow>
+            <ChartColumn>
+              <DexChart />
+            </ChartColumn>
+            <ChartColumn>
+              <GexChart />
+            </ChartColumn>
+          </ChartRow>
+        </ContentArea>
       </MainContent>
     </AppContainer>
   );
