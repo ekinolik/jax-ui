@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import styled from 'styled-components';
 import Header from './components/layout/Header';
 import Sidebar from './components/layout/Sidebar';
@@ -37,7 +37,13 @@ const ChartColumn = styled.div`
   flex: 1;
 `;
 
-function App() {
+const App = () => {
+  const [dte, setDte] = useState(50);
+
+  const handleDteChange = (newDte) => {
+    setDte(Number(newDte));
+  };
+
   return (
     <AppContainer>
       <Header />
@@ -49,16 +55,16 @@ function App() {
           </ChartRow>
           <ChartRow>
             <ChartColumn>
-              <DexChart />
+              <DexChart dte={dte} onDteChange={handleDteChange} />
             </ChartColumn>
             <ChartColumn>
-              <GexChart />
+              <GexChart dte={dte} onDteChange={handleDteChange} />
             </ChartColumn>
           </ChartRow>
         </ContentArea>
       </MainContent>
     </AppContainer>
   );
-}
+};
 
 export default App; 

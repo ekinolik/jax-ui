@@ -7,23 +7,25 @@ const Wrapper = styled.div`
 `;
 
 const FixedWidthWrapper = styled.div`
-  width: ${props => props.fullWidth ? '100%' : '600px'};
+  width: ${props => props.$fullWidth ? '100%' : '600px'};
   margin: 0 auto;
 `;
 
-const Container = styled.div`
+const Container = styled.div.attrs(props => ({
+  'data-testid': `${props.$title?.toLowerCase().replace(/[()]/g, '').replace(/\s+/g, '-')}`,
+  'data-fullscreen': props.$isFullscreen
+}))`
   background: white;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   padding: 1rem 1rem 4.5rem 1rem;
-  height: ${props => props.isFullscreen ? '100vh' : '550px'};
-  width: ${props => props.isFullscreen ? '100vw' : '100%'};
-  position: ${props => props.isFullscreen ? 'fixed' : 'relative'};
-  top: ${props => props.isFullscreen ? '0' : 'auto'};
-  left: ${props => props.isFullscreen ? '0' : 'auto'};
-  z-index: ${props => props.isFullscreen ? '1000' : '1'};
+  height: ${props => props.$isFullscreen ? '100vh' : '550px'};
+  width: ${props => props.$isFullscreen ? '100vw' : '100%'};
+  position: ${props => props.$isFullscreen ? 'fixed' : 'relative'};
+  top: ${props => props.$isFullscreen ? '0' : 'auto'};
+  left: ${props => props.$isFullscreen ? '0' : 'auto'};
+  z-index: ${props => props.$isFullscreen ? '1000' : '1'};
   transition: all 0.3s ease;
-  cursor: pointer;
   box-sizing: border-box;
 `;
 
@@ -51,10 +53,13 @@ const FullscreenButton = styled.button`
 
 const ChartContainer = ({ title, children, fullWidth }) => {
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const testId = title?.toLowerCase().replace(/[()]/g, '').replace(/\s+/g, '-');
 
   const toggleFullscreen = (e) => {
-    e.stopPropagation();
-    setIsFullscreen(!isFullscreen);
+    if (e) {
+      e.stopPropagation();
+    }
+    setIsFullscreen(prev => !prev);
   };
 
   // Handle escape key to exit fullscreen
@@ -73,12 +78,15 @@ const ChartContainer = ({ title, children, fullWidth }) => {
 
   const content = (
     <Container 
-      isFullscreen={isFullscreen}
-      onClick={() => setIsFullscreen(true)}
+      $title={title}
+      $isFullscreen={isFullscreen}
     >
       <Title>
         {title}
-        <FullscreenButton onClick={toggleFullscreen}>
+        <FullscreenButton 
+          onClick={toggleFullscreen} 
+          data-testid={`${testId}-fullscreen-button`}
+        >
           {isFullscreen ? '×' : '⛶'}
         </FullscreenButton>
       </Title>
@@ -92,7 +100,7 @@ const ChartContainer = ({ title, children, fullWidth }) => {
   return (
     <Wrapper>
       {isFullscreen ? content : (
-        <FixedWidthWrapper fullWidth={fullWidth}>
+        <FixedWidthWrapper $fullWidth={fullWidth}>
           {content}
         </FixedWidthWrapper>
       )}

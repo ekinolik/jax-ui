@@ -90,9 +90,13 @@ const generateDataWithExpirations = (dte, strikes) => {
   return data.reverse();
 };
 
-const DexChartContent = ({ isFullscreen }) => {
-  const [dte, setDte] = useState(50);
+const DexChartContent = ({ isFullscreen, dte, onDteChange }) => {
   const [strikes, setStrikes] = useState(30);
+
+  const handleDteChange = (e) => {
+    e.stopPropagation();
+    onDteChange(e.target.value);
+  };
 
   // Generate expiration dates based on DTE
   const expirationDates = generateExpirationDates(dte);
@@ -140,11 +144,6 @@ const DexChartContent = ({ isFullscreen }) => {
     const b = Math.round(gradientRange.startColor.b + (gradientRange.endColor.b - gradientRange.startColor.b) * positionInRange);
 
     return `rgb(${r}, ${g}, ${b})`;
-  };
-
-  const handleDteChange = (e) => {
-    e.stopPropagation();
-    setDte(Number(e.target.value));
   };
 
   const handleStrikesChange = (e) => {
@@ -210,8 +209,13 @@ const DexChartContent = ({ isFullscreen }) => {
     <>
       <ControlsContainer onClick={e => e.stopPropagation()}>
         <SelectGroup>
-          <label>DTE:</label>
-          <Select value={dte} onChange={handleDteChange}>
+          <label htmlFor="dte-select">DTE:</label>
+          <Select 
+            id="dte-select"
+            aria-label="DTE"
+            value={dte} 
+            onChange={handleDteChange}
+          >
             {DTE_OPTIONS.map(value => (
               <option key={value} value={value}>
                 {value} days
@@ -220,8 +224,13 @@ const DexChartContent = ({ isFullscreen }) => {
           </Select>
         </SelectGroup>
         <SelectGroup>
-          <label>Strikes:</label>
-          <Select value={strikes} onChange={handleStrikesChange}>
+          <label htmlFor="strikes-select">Strikes:</label>
+          <Select 
+            id="strikes-select"
+            aria-label="Strikes"
+            value={strikes} 
+            onChange={handleStrikesChange}
+          >
             {STRIKE_OPTIONS.map(value => (
               <option key={value} value={value}>
                 {value} strikes
@@ -411,10 +420,10 @@ const DexChartContent = ({ isFullscreen }) => {
 };
 
 // Wrapper component
-const DexChart = () => {
+const DexChart = ({ dte, onDteChange }) => {
   return (
     <ChartContainer title="Delta Exposure (DEX) Chart">
-      <DexChartContent />
+      <DexChartContent dte={dte} onDteChange={onDteChange} />
     </ChartContainer>
   );
 };
