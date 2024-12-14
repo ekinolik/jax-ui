@@ -119,7 +119,6 @@ const DexChartContent = ({ isFullscreen, dte, onDteChange }) => {
 
   const getColor = (id) => {
     const expDate = expirationDates.find(exp => id.includes(exp));
-    const expIndex = expirationDates.indexOf(expDate);
     const daysToExp = Math.ceil((new Date(expDate) - new Date()) / (1000 * 60 * 60 * 24));
 
     // Find the appropriate gradient range
