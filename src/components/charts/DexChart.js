@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ResponsiveBar } from '@nivo/bar';
+import { ResponsiveLine } from '@nivo/line';
 import styled from 'styled-components';
 import ChartContainer from '../common/ChartContainer';
 
@@ -67,10 +68,9 @@ const transformApiData = (rawData, dte) => {
   const dates = Array.from(allDates).sort();
 
   // Transform data into chart format
-  const chartData = strikes.map(strike => {
+  return strikes.map(strike => {
     const dataPoint = {
-      strike: `$${strike}`,
-      isSpotPrice: false,
+      strike: parseFloat(strike),
     };
 
     dates.forEach(date => {
@@ -83,36 +83,34 @@ const transformApiData = (rawData, dte) => {
 
     return dataPoint;
   });
-
-  // Insert spot price row
-  const spotPriceRow = {
-    strike: `$${rawData.spotPrice}`,
-    isSpotPrice: true,
-    __skipRender: true  // Special flag to skip rendering this row as a bar
-  };
-
-  // Don't add any data keys to this row at all
-  // This should prevent the bar from being rendered while keeping the axis label
-
-  // Find insertion point to maintain sort order
-  const insertIndex = chartData.findIndex(d => 
-    parseFloat(d.strike.slice(1)) > rawData.spotPrice
-  );
-  chartData.splice(insertIndex, 0, spotPriceRow);
-
-  return chartData;
 };
+
+const ChartWrapper = styled.div`
+  position: relative;
+  height: 100%;
+`;
+
+const OverlayChart = styled.div`
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+`;
 
 const DexChartContent = ({ isFullscreen, dte, onDteChange }) => {
   const [strikes, setStrikes] = useState(30);
   const [chartData, setChartData] = useState([]);
   const [expirationDates, setExpirationDates] = useState([]);
+  const [spotPrice, setSpotPrice] = useState(null);
 
   useEffect(() => {
     // Import the sample data
     import('../../data/sample-data.json').then(data => {
       const newData = transformApiData(data.default, dte);
       setChartData(newData);
+      setSpotPrice(data.default.spotPrice);
       
       // Extract unique dates
       const dates = new Set();
@@ -187,6 +185,14 @@ const DexChartContent = ({ isFullscreen, dte, onDteChange }) => {
     })
   );
 
+  // Create data for the line chart (just one point for the spot price)
+  const lineData = [
+    {
+      id: 'spot',
+      data: [{ x: 0, y: spotPrice }]
+    }
+  ];
+
   const theme = {
     axis: {
       ticks: {
@@ -256,200 +262,223 @@ const DexChartContent = ({ isFullscreen, dte, onDteChange }) => {
           </Select>
         </SelectGroup>
       </ControlsContainer>
-      <ResponsiveBar
-        data={chartData.map(d => {
-          if (d.__skipRender) {
-            // Return minimal data for spot price row
-            return {
-              strike: d.strike,
-              isSpotPrice: true
-            };
+      <ChartWrapper>
+        <ResponsiveBar
+          data={chartData}
+          keys={keys}
+          indexBy="strike"
+          layout="horizontal"
+          margin={isFullscreen ? 
+            { top: 0, right: 160, bottom: 100, left: 100 } : 
+            { top: 0, right: 130, bottom: 65, left: 80 }
           }
-          return d;
-        })}
-        keys={keys}
-        indexBy="strike"
-        layout="horizontal"
-        margin={isFullscreen ? 
-          { top: 0, right: 160, bottom: 100, left: 100 } : 
-          { top: 0, right: 130, bottom: 65, left: 80 }
-        }
-        valueScale={{ 
-          type: 'linear',
-          min: -maxValue,
-          max: maxValue,
-        }}
-        indexScale={{ 
-          type: 'band',
-          round: true,
-          padding: (d) => d.data?.isSpotPrice ? 0.99999 : 0.2,  // Make spot price row extremely thin
-          align: 0.5
-        }}
-        enableGridY={true}
-        enableGridX={true}
-        gridXValues={[0]}
-        theme={{
-          ...theme,
-          axis: {
-            ...theme.axis,
-            ticks: {
-              ...theme.axis.ticks,
-              text: {
-                ...theme.axis.ticks.text,
-                fontSize: isFullscreen ? 14 : 12,
-              }
-            },
-            legend: {
-              ...theme.axis.legend,
-              text: {
-                ...theme.axis.legend.text,
-                fontSize: isFullscreen ? 15 : 13,
-              }
-            }
-          },
-          grid: {
-            line: {
-              stroke: '#e0e0e0',
-              strokeWidth: 1,
-              strokeDasharray: 'none'
-            }
-          }
-        }}
-        markers={[
-          {
-            axis: 'x',
-            value: 0,
-            lineStyle: { 
-              stroke: '#ff0000',
-              strokeWidth: 2,
-              strokeDasharray: 'none'
-            },
-            legend: '',
-            legendPosition: null,
-          },
-          {
-            axis: 'y',
-            value: `$${chartData.find(d => d.isSpotPrice)?.strike.slice(1)}`,
-            lineStyle: { 
-              stroke: '#ffcccc',
-              strokeWidth: 2,
-              strokeDasharray: 'none'
-            },
-            legend: '',
-            legendPosition: null,
-          }
-        ]}
-        colors={({ id }) => getColor(id)}
-        borderRadius={2}
-        borderWidth={1}
-        borderColor={{ from: 'color', modifiers: [['darker', 0.6]] }}
-        axisTop={null}
-        axisBottom={{
-          tickSize: 5,
-          tickPadding: 5,
-          tickRotation: 0,
-          legend: '',
-          legendPosition: 'middle',
-          legendOffset: 0,
-          format: v => Math.abs(v).toFixed(2)
-        }}
-        axisLeft={{
-          tickSize: 5,
-          tickPadding: 12,
-          tickRotation: 0,
-          legend: 'Strike Price',
-          legendPosition: 'middle',
-          legendOffset: -50
-        }}
-        enableLabel={false}
-        animate={true}
-        motionConfig="gentle"
-        tooltip={({ id, value, indexValue, data }) => {
-          const callsSum = expirationDates.reduce((sum, exp) => 
-            sum + Math.abs(data[`calls_${exp}`] || 0), 0
-          );
-          const putsSum = expirationDates.reduce((sum, exp) => 
-            sum + Math.abs(data[`puts_${exp}`] || 0), 0
-          );
-
-          const expDate = expirationDates.find(exp => id.includes(exp));
-          const isCall = id.startsWith('calls');
-
-          return (
-            <div style={{
-              padding: '12px 16px',
-              background: '#ffffff',
-              boxShadow: '0 3px 8px rgba(0,0,0,0.24)',
-              borderRadius: '6px',
-              fontSize: '12px',
-              lineHeight: '1.6'
-            }}>
-              <div style={{ 
-                color: getColor(id),
-                fontWeight: 600,
-                marginBottom: '4px'
-              }}>
-                Expiration: {expDate}
-              </div>
-              <div style={{ 
-                color: '#333',
-                fontWeight: 600,
-                marginBottom: '12px'
-              }}>
-                Strike: {indexValue}
-              </div>
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'auto auto',
-                gap: '8px 16px'
-              }}>
-                <div style={{ color: '#666' }}>{isCall ? 'Call' : 'Put'} Value:</div>
-                <div style={{ 
-                  fontWeight: 500,
-                  color: getColor(id)
-                }}>{Math.abs(value).toFixed(2)}</div>
-                <div style={{ color: '#666' }}>Total Calls:</div>
-                <div style={{ fontWeight: 500 }}>{callsSum.toFixed(2)}</div>
-                <div style={{ color: '#666' }}>Total Puts:</div>
-                <div style={{ fontWeight: 500 }}>{putsSum.toFixed(2)}</div>
-              </div>
-            </div>
-          );
-        }}
-        legends={[
-          {
-            dataFrom: 'keys',
-            anchor: 'top-right',
-            direction: 'column',
-            justify: false,
-            translateX: 120,
-            translateY: 0,
-            itemsSpacing: 2,
-            itemWidth: isFullscreen ? 180 : 140,
-            itemHeight: 16,
-            itemDirection: 'left-to-right',
-            itemOpacity: 1,
-            symbolSize: isFullscreen ? 14 : 12,
-            symbolShape: 'circle',
-            fontSize: isFullscreen ? 13 : 11,
-            itemTextColor: '#666',
-            effects: [
-              {
-                on: 'hover',
-                style: {
-                  itemTextColor: '#000',
-                  itemBackground: '#f5f5f5'
+          valueScale={{ 
+            type: 'linear',
+            min: -maxValue,
+            max: maxValue,
+          }}
+          indexScale={{ 
+            type: 'band',
+            round: true,
+            padding: 0.2,
+            align: 0.5
+          }}
+          enableGridY={true}
+          enableGridX={true}
+          gridXValues={[0]}
+          theme={{
+            ...theme,
+            axis: {
+              ...theme.axis,
+              ticks: {
+                ...theme.axis.ticks,
+                text: {
+                  ...theme.axis.ticks.text,
+                  fontSize: isFullscreen ? 14 : 12,
+                }
+              },
+              legend: {
+                ...theme.axis.legend,
+                text: {
+                  ...theme.axis.legend.text,
+                  fontSize: isFullscreen ? 15 : 13,
                 }
               }
-            ],
-            data: expirationDates.map(exp => ({
-              id: `calls_${exp}`,
-              label: `Exp: ${exp}`,
-              color: getColor(`calls_${exp}`)
-            }))
-          }
-        ]}
-      />
+            },
+            grid: {
+              line: {
+                stroke: '#e0e0e0',
+                strokeWidth: 1,
+                strokeDasharray: 'none'
+              }
+            }
+          }}
+          markers={[
+            {
+              axis: 'x',
+              value: 0,
+              lineStyle: { 
+                stroke: '#ff0000',
+                strokeWidth: 2,
+                strokeDasharray: 'none'
+              },
+              legend: '',
+              legendPosition: null,
+            }
+          ]}
+          colors={({ id }) => getColor(id)}
+          borderRadius={2}
+          borderWidth={1}
+          borderColor={{ from: 'color', modifiers: [['darker', 0.6]] }}
+          axisTop={null}
+          axisBottom={{
+            tickSize: 5,
+            tickPadding: 5,
+            tickRotation: 0,
+            legend: '',
+            legendPosition: 'middle',
+            legendOffset: 0,
+            format: v => Math.abs(v).toFixed(2)
+          }}
+          axisLeft={{
+            tickSize: 5,
+            tickPadding: 12,
+            tickRotation: 0,
+            legend: 'Strike Price',
+            legendPosition: 'middle',
+            legendOffset: -50,
+            format: value => `$${value}`
+          }}
+          enableLabel={false}
+          animate={true}
+          motionConfig="gentle"
+          tooltip={({ id, value, indexValue, data }) => {
+            const callsSum = expirationDates.reduce((sum, exp) => 
+              sum + Math.abs(data[`calls_${exp}`] || 0), 0
+            );
+            const putsSum = expirationDates.reduce((sum, exp) => 
+              sum + Math.abs(data[`puts_${exp}`] || 0), 0
+            );
+
+            const expDate = expirationDates.find(exp => id.includes(exp));
+            const isCall = id.startsWith('calls');
+
+            return (
+              <div style={{
+                padding: '12px 16px',
+                background: '#ffffff',
+                boxShadow: '0 3px 8px rgba(0,0,0,0.24)',
+                borderRadius: '6px',
+                fontSize: '12px',
+                lineHeight: '1.6'
+              }}>
+                <div style={{ 
+                  color: getColor(id),
+                  fontWeight: 600,
+                  marginBottom: '4px'
+                }}>
+                  Expiration: {expDate}
+                </div>
+                <div style={{ 
+                  color: '#333',
+                  fontWeight: 600,
+                  marginBottom: '12px'
+                }}>
+                  Strike: {indexValue}
+                </div>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'auto auto',
+                  gap: '8px 16px'
+                }}>
+                  <div style={{ color: '#666' }}>{isCall ? 'Call' : 'Put'} Value:</div>
+                  <div style={{ 
+                    fontWeight: 500,
+                    color: getColor(id)
+                  }}>{Math.abs(value).toFixed(2)}</div>
+                  <div style={{ color: '#666' }}>Total Calls:</div>
+                  <div style={{ fontWeight: 500 }}>{callsSum.toFixed(2)}</div>
+                  <div style={{ color: '#666' }}>Total Puts:</div>
+                  <div style={{ fontWeight: 500 }}>{putsSum.toFixed(2)}</div>
+                </div>
+              </div>
+            );
+          }}
+          legends={[
+            {
+              dataFrom: 'keys',
+              anchor: 'top-right',
+              direction: 'column',
+              justify: false,
+              translateX: 120,
+              translateY: 0,
+              itemsSpacing: 2,
+              itemWidth: isFullscreen ? 180 : 140,
+              itemHeight: 16,
+              itemDirection: 'left-to-right',
+              itemOpacity: 1,
+              symbolSize: isFullscreen ? 14 : 12,
+              symbolShape: 'circle',
+              fontSize: isFullscreen ? 13 : 11,
+              itemTextColor: '#666',
+              effects: [
+                {
+                  on: 'hover',
+                  style: {
+                    itemTextColor: '#000',
+                    itemBackground: '#f5f5f5'
+                  }
+                }
+              ],
+              data: expirationDates.map(exp => ({
+                id: `calls_${exp}`,
+                label: `Exp: ${exp}`,
+                color: getColor(`calls_${exp}`)
+              }))
+            }
+          ]}
+        />
+        <OverlayChart>
+          <ResponsiveLine
+            data={lineData}
+            margin={isFullscreen ? 
+              { top: 0, right: 160, bottom: 100, left: 100 } : 
+              { top: 0, right: 130, bottom: 65, left: 80 }
+            }
+            xScale={{ type: 'linear', min: -maxValue, max: maxValue }}
+            yScale={{ type: 'linear', min: Math.min(...chartData.map(d => d.strike)), max: Math.max(...chartData.map(d => d.strike)) }}
+            enableGridX={false}
+            enableGridY={false}
+            enablePoints={false}
+            enableArea={false}
+            axisTop={null}
+            axisRight={null}
+            axisBottom={null}
+            axisLeft={null}
+            markers={[
+              {
+                axis: 'y',
+                value: spotPrice,
+                lineStyle: { 
+                  stroke: '#ff9999',
+                  strokeWidth: 2,
+                  strokeDasharray: 'none'
+                },
+                legend: `Spot: $${spotPrice?.toFixed(2)}`,
+                legendPosition: 'left',
+                legendOffsetX: -60,
+                legendOrientation: 'horizontal',
+                textStyle: {
+                  fill: '#333',
+                  fontSize: 9,
+                  textAnchor: 'end',
+                  dominantBaseline: 'text-after-edge'
+                }
+              }
+            ]}
+          />
+        </OverlayChart>
+      </ChartWrapper>
     </>
   );
 };
