@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ResponsiveBar } from '@nivo/bar';
 import styled from 'styled-components';
 import ChartContainer from '../common/ChartContainer';
@@ -42,65 +42,93 @@ const SelectGroup = styled.div`
 `;
 
 const DTE_OPTIONS = [20, 50, 180, 360, 500];
-const STRIKE_OPTIONS = [20, 30, 50, 80, 100, 150, 200];
+const STRIKE_OPTIONS = [2, 20, 30, 50, 80, 100, 150, 200];
 
-const generateExpirationDates = (dte) => {
-  const dates = [];
+const transformApiData = (rawData, dte) => {
+  // Get all unique strikes and sort them
+  const strikes = Object.keys(rawData)
+    .filter(key => key !== 'spotPrice')
+    .sort((a, b) => parseFloat(a) - parseFloat(b));
+  
+  // Get all dates within DTE range
   const today = new Date();
-  const weeksCount = Math.floor(dte / 7);
+  const maxDate = new Date(today.getTime() + (dte * 24 * 60 * 60 * 1000));
   
-  for (let i = 0; i < weeksCount; i++) {
-    const date = new Date(today);
-    date.setDate(date.getDate() + (i * 7));
-    dates.push(date.toLocaleDateString('en-US', { 
-      month: '2-digit', 
-      day: '2-digit', 
-      year: '2-digit'
-    }));
-  }
-  
-  return dates;
-};
+  // Get all unique dates and filter by DTE
+  const allDates = new Set();
+  strikes.forEach(strike => {
+    Object.keys(rawData[strike]).forEach(date => {
+      const expDate = new Date(date);
+      if (expDate >= today && expDate <= maxDate) {
+        allDates.add(date);
+      }
+    });
+  });
+  const dates = Array.from(allDates).sort();
 
-const generateDataWithExpirations = (dte, strikes) => {
-  const expirationDates = generateExpirationDates(dte);
-  const data = [];
-  const basePrice = 100;
-  const priceStep = 5;
-
-  // Generate strike prices
-  for (let i = 0; i < strikes; i++) {
-    const strikePrice = basePrice + (i - Math.floor(strikes/2)) * priceStep;
+  // Transform data into chart format
+  const chartData = strikes.map(strike => {
     const dataPoint = {
-      strike: `$${strikePrice}`,
+      strike: `$${strike}`,
+      isSpotPrice: false,
     };
 
-    // Add data for each expiration date
-    expirationDates.forEach(exp => {
-      const callKey = `calls_${exp}`;
-      const putKey = `puts_${exp}`;
-      // Mock data generation - replace with real data
-      dataPoint[callKey] = Math.random() * 0.8;
-      dataPoint[putKey] = -Math.random() * 0.8;
+    dates.forEach(date => {
+      const strikeData = rawData[strike][date] || {};
+      const callKey = `calls_${date}`;
+      const putKey = `puts_${date}`;
+      dataPoint[callKey] = -(strikeData.call?.Dex || 0);
+      dataPoint[putKey] = -strikeData.put?.Dex || 0;
     });
 
-    data.push(dataPoint);
-  }
+    return dataPoint;
+  });
 
-  return data.reverse();
+  // Insert spot price row
+  const spotPriceRow = {
+    strike: `$${rawData.spotPrice}`,
+    isSpotPrice: true,
+    __skipRender: true  // Special flag to skip rendering this row as a bar
+  };
+
+  // Don't add any data keys to this row at all
+  // This should prevent the bar from being rendered while keeping the axis label
+
+  // Find insertion point to maintain sort order
+  const insertIndex = chartData.findIndex(d => 
+    parseFloat(d.strike.slice(1)) > rawData.spotPrice
+  );
+  chartData.splice(insertIndex, 0, spotPriceRow);
+
+  return chartData;
 };
 
 const DexChartContent = ({ isFullscreen, dte, onDteChange }) => {
   const [strikes, setStrikes] = useState(30);
+  const [chartData, setChartData] = useState([]);
+  const [expirationDates, setExpirationDates] = useState([]);
+
+  useEffect(() => {
+    // Import the sample data
+    import('../../data/sample-data.json').then(data => {
+      const newData = transformApiData(data.default, dte);
+      setChartData(newData);
+      
+      // Extract unique dates
+      const dates = new Set();
+      newData.forEach(item => {
+        Object.keys(item)
+          .filter(key => key.startsWith('calls_'))
+          .forEach(key => dates.add(key.replace('calls_', '')));
+      });
+      setExpirationDates(Array.from(dates).sort());
+    });
+  }, [dte]);
 
   const handleDteChange = (e) => {
     e.stopPropagation();
     onDteChange(e.target.value);
   };
-
-  // Generate expiration dates based on DTE
-  const expirationDates = generateExpirationDates(dte);
-  const data = generateDataWithExpirations(dte, strikes);
 
   // Generate keys for the chart based on expiration dates
   const keys = expirationDates.flatMap(exp => [
@@ -152,22 +180,12 @@ const DexChartContent = ({ isFullscreen, dte, onDteChange }) => {
 
   // Calculate max value from the new data structure
   const maxValue = Math.max(
-    ...data.map(item => {
+    ...chartData.map(item => {
       const callsSum = expirationDates.reduce((sum, exp) => sum + Math.abs(item[`calls_${exp}`] || 0), 0);
       const putsSum = expirationDates.reduce((sum, exp) => sum + Math.abs(item[`puts_${exp}`] || 0), 0);
       return Math.max(callsSum, putsSum);
     })
   );
-
-  // Transform the data
-  const transformedData = data.map(item => {
-    const transformed = { strike: item.strike };
-    expirationDates.forEach(exp => {
-      transformed[`calls_${exp}`] = -item[`calls_${exp}`];
-      transformed[`puts_${exp}`] = -item[`puts_${exp}`];
-    });
-    return transformed;
-  });
 
   const theme = {
     axis: {
@@ -239,13 +257,22 @@ const DexChartContent = ({ isFullscreen, dte, onDteChange }) => {
         </SelectGroup>
       </ControlsContainer>
       <ResponsiveBar
-        data={transformedData}
+        data={chartData.map(d => {
+          if (d.__skipRender) {
+            // Return minimal data for spot price row
+            return {
+              strike: d.strike,
+              isSpotPrice: true
+            };
+          }
+          return d;
+        })}
         keys={keys}
         indexBy="strike"
         layout="horizontal"
         margin={isFullscreen ? 
-          { top: 40, right: 160, bottom: 100, left: 100 } : 
-          { top: 20, right: 130, bottom: 65, left: 80 }
+          { top: 0, right: 160, bottom: 100, left: 100 } : 
+          { top: 0, right: 130, bottom: 65, left: 80 }
         }
         valueScale={{ 
           type: 'linear',
@@ -253,14 +280,14 @@ const DexChartContent = ({ isFullscreen, dte, onDteChange }) => {
           max: maxValue,
         }}
         indexScale={{ 
-          type: 'band', 
+          type: 'band',
           round: true,
-          padding: 0.4
+          padding: (d) => d.data?.isSpotPrice ? 0.99999 : 0.2,  // Make spot price row extremely thin
+          align: 0.5
         }}
         enableGridY={true}
         enableGridX={true}
         gridXValues={[0]}
-        gridYValues={undefined}
         theme={{
           ...theme,
           axis: {
@@ -282,19 +309,41 @@ const DexChartContent = ({ isFullscreen, dte, onDteChange }) => {
           },
           grid: {
             line: {
-              stroke: '#999999',
+              stroke: '#e0e0e0',
               strokeWidth: 1,
-              strokeDasharray: '4 4',
-              strokeOpacity: 0.4
+              strokeDasharray: 'none'
             }
           }
         }}
+        markers={[
+          {
+            axis: 'x',
+            value: 0,
+            lineStyle: { 
+              stroke: '#ff0000',
+              strokeWidth: 2,
+              strokeDasharray: 'none'
+            },
+            legend: '',
+            legendPosition: null,
+          },
+          {
+            axis: 'y',
+            value: `$${chartData.find(d => d.isSpotPrice)?.strike.slice(1)}`,
+            lineStyle: { 
+              stroke: '#ffcccc',
+              strokeWidth: 2,
+              strokeDasharray: 'none'
+            },
+            legend: '',
+            legendPosition: null,
+          }
+        ]}
         colors={({ id }) => getColor(id)}
         borderRadius={2}
         borderWidth={1}
         borderColor={{ from: 'color', modifiers: [['darker', 0.6]] }}
         axisTop={null}
-        axisRight={null}
         axisBottom={{
           tickSize: 5,
           tickPadding: 5,
@@ -367,19 +416,6 @@ const DexChartContent = ({ isFullscreen, dte, onDteChange }) => {
             </div>
           );
         }}
-        markers={[
-          {
-            axis: 'x',
-            value: 0,
-            lineStyle: { 
-              stroke: '#ff0000',
-              strokeWidth: 2,
-              strokeDasharray: 'none'
-            },
-            legend: '',
-            legendPosition: null,
-          }
-        ]}
         legends={[
           {
             dataFrom: 'keys',
