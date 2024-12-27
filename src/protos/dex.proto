@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package dex.v1;
+
+service DexService {
+  rpc GetDex (DexRequest) returns (DexResponse);
+}
+
+message DexRequest {
+  int32 dte = 1;
+}
+
+message DexResponse {
+  double spotPrice = 1;
+  repeated Strike strikes = 2;
+}
+
+message Strike {
+  double strike = 1;
+  repeated Expiration expirations = 2;
+}
+
+message Expiration {
+  string date = 1;
+  double callDex = 2;
+  double putDex = 3;
+} 

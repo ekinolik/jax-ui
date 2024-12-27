@@ -95,7 +95,8 @@ const GexChartContent = ({ isFullscreen, dte, onDteChange }) => {
 
   const handleDteChange = (e) => {
     e.stopPropagation();
-    onDteChange(e.target.value);
+    const newDte = Number(e.target.value);
+    onDteChange(newDte);
   };
 
   // Generate expiration dates based on DTE
@@ -411,7 +412,7 @@ const GexChartContent = ({ isFullscreen, dte, onDteChange }) => {
 // Wrapper component
 const GexChart = ({ dte, onDteChange }) => {
   return (
-    <ChartContainer title="Gamma Exposure (GEX) Chart">
+    <ChartContainer title="Gamma Exposure (GEX) Chart" data-testid="gex-chart">
       <GexChartContent dte={dte} onDteChange={onDteChange} />
     </ChartContainer>
   );

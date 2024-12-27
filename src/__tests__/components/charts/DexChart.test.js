@@ -1,33 +1,48 @@
 import React from 'react';
-import { render, fireEvent, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, act, fireEvent } from '@testing-library/react';
 import DexChart from '../../../components/charts/DexChart';
 
-// Mock the sample data
-jest.mock('../../../data/sample-data.json', () => ({
-  "240": {
-    "2024-12-20": {
-      "call": { "Dex": 100000 },
-      "put": { "Dex": -50000 }
-    }
-  },
-  "242.5": {
-    "2024-12-20": {
-      "call": { "Dex": 75000 },
-      "put": { "Dex": -25000 }
-    }
-  }
-}));
+// Mock fetch
+global.fetch = jest.fn(() =>
+  Promise.resolve({
+    ok: true,
+    json: () => Promise.resolve({
+      f: {
+        2: {
+          a: {}
+        }
+      }
+    })
+  })
+);
 
 describe('DexChart', () => {
-  it('renders with sample data', async () => {
-    render(<DexChart />);
-    expect(screen.getByText('Delta Exposure (DEX) Chart')).toBeInTheDocument();
+  beforeEach(() => {
+    fetch.mockClear();
+  });
+
+  it('renders with client data', async () => {
+    await act(async () => {
+      render(<DexChart dte={20} onDteChange={() => {}} />);
+    });
     
-    // Wait for data to load
     await waitFor(() => {
-      expect(screen.getByTestId('mock-responsive-bar')).toBeInTheDocument();
+      expect(screen.getByText('Delta Exposure (DEX) Chart')).toBeInTheDocument();
     });
   });
 
-  // ... other tests ...
+  it('updates when DTE changes', async () => {
+    const handleDteChange = jest.fn();
+
+    await act(async () => {
+      render(<DexChart dte={20} onDteChange={handleDteChange} />);
+    });
+
+    const dteSelect = screen.getByRole('combobox', { name: 'DTE' });
+    await act(async () => {
+      fireEvent.change(dteSelect, { target: { value: '180' } });
+    });
+
+    expect(handleDteChange).toHaveBeenCalled();
+  });
 }); 

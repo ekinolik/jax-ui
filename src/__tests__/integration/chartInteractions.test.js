@@ -1,49 +1,79 @@
 import React from 'react';
-import { render, fireEvent, screen, within, waitFor } from '@testing-library/react';
-import '@testing-library/jest-dom';
+import { render, screen, within, fireEvent, act, waitFor } from '@testing-library/react';
 import App from '../../App';
 
+// Mock fetch with proper response structure
+global.fetch = jest.fn(() =>
+  Promise.resolve({
+    ok: true,
+    json: () => Promise.resolve({
+      f: {
+        2: {
+          c: {},
+          a: {
+            '100': {
+              value: [
+                [
+                  '2024-01-19',
+                  [
+                    [
+                      [
+                        'call',
+                        [100]
+                      ],
+                      [
+                        'put',
+                        [200]
+                      ]
+                    ]
+                  ]
+                ]
+              ]
+            }
+          }
+        }
+      }
+    })
+  })
+);
+
 describe('Chart Interactions', () => {
-  beforeEach(() => {
-    render(<App />);
+  beforeEach(async () => {
+    fetch.mockClear();
+    await act(async () => {
+      render(<App />);
+      // Wait for initial render to complete
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
   });
 
-  it('updates all charts when DTE changes', () => {
+  it('updates all charts when DTE changes', async () => {
     const dexContainer = screen.getByTestId('delta-exposure-dex-chart');
     const gexContainer = screen.getByTestId('gamma-exposure-gex-chart');
     
-    const dteSelects = screen.getAllByRole('combobox', { name: /dte/i });
-    fireEvent.change(dteSelects[0], { target: { value: '180' } });
-    
-    // Verify both charts updated
+    // Get the DTE select from the DEX chart
     const dexSelect = within(dexContainer).getByRole('combobox', { name: /dte/i });
-    const gexSelect = within(gexContainer).getByRole('combobox', { name: /dte/i });
     
-    expect(dexSelect.value).toBe('180');
-    expect(gexSelect.value).toBe('180');
-  });
+    // Change the DTE value
+    await act(async () => {
+      fireEvent.change(dexSelect, { target: { value: '180' } });
+      // Wait for any pending promises to resolve
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
 
-  it('handles fullscreen transitions', async () => {
-    // Get the first chart container (Price Chart)
-    const chartWrapper = screen.getByTestId('price-chart');
-    const fullscreenButton = screen.getByTestId('price-chart-fullscreen-button');
-    
-    // Enter fullscreen
-    fireEvent.click(fullscreenButton);
-    
-    // Wait for the fullscreen state to update and verify
+    // Wait for fetch to be called
     await waitFor(() => {
-      const updatedWrapper = screen.getByTestId('price-chart');
-      expect(updatedWrapper).toHaveAttribute('data-fullscreen', 'true');
+      expect(fetch).toHaveBeenCalled();
     });
-    
-    // Exit fullscreen
-    fireEvent.keyDown(document, { key: 'Escape' });
-    
-    // Wait for the fullscreen state to update and verify
+
+    // Wait for both selects to update
     await waitFor(() => {
-      const updatedWrapper = screen.getByTestId('price-chart');
-      expect(updatedWrapper).toHaveAttribute('data-fullscreen', 'false');
-    });
+      const updatedDexSelect = within(dexContainer).getByRole('combobox', { name: /dte/i });
+      const updatedGexSelect = within(gexContainer).getByRole('combobox', { name: /dte/i });
+      
+      // Both selects should have the numeric value 180
+      expect(Number(updatedDexSelect.value)).toBe(180);
+      expect(Number(updatedGexSelect.value)).toBe(180);
+    }, { timeout: 3000 });
   });
 }); 

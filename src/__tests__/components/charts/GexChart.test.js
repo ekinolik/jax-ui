@@ -14,6 +14,10 @@ describe('GexChart', () => {
     onDteChange: jest.fn()
   };
 
+  beforeEach(() => {
+    defaultProps.onDteChange.mockClear();
+  });
+
   it('renders without crashing', () => {
     render(<GexChart {...defaultProps} />);
     expect(screen.getByText('Gamma Exposure (GEX) Chart')).toBeInTheDocument();
@@ -37,7 +41,7 @@ describe('GexChart', () => {
     render(<GexChart {...defaultProps} />);
     const dteSelect = screen.getByRole('combobox', { name: /dte/i });
     fireEvent.change(dteSelect, { target: { value: '180' } });
-    expect(defaultProps.onDteChange).toHaveBeenCalledWith('180');
+    expect(defaultProps.onDteChange).toHaveBeenCalledWith(180);
   });
 
   it('updates when strike count changes', () => {
