@@ -38,27 +38,28 @@ const ChartColumn = styled.div`
 `;
 
 const App = () => {
-  const [dte, setDte] = useState(50);
-
-  const handleDteChange = (newDte) => {
-    setDte(Number(newDte));
-  };
+  const [asset, setAsset] = useState('');
 
   return (
     <AppContainer>
-      <Header />
+      <Header 
+        asset={asset}
+        onAssetChange={setAsset}
+      />
       <MainContent>
         <Sidebar />
         <ContentArea>
           <ChartRow>
-            <PriceChart />
+            <ChartColumn>
+              <PriceChart asset={asset} />
+            </ChartColumn>
           </ChartRow>
           <ChartRow>
             <ChartColumn>
-              <DexChart dte={dte} onDteChange={handleDteChange} />
+              <DexChart asset={asset} />
             </ChartColumn>
             <ChartColumn>
-              <GexChart dte={dte} onDteChange={handleDteChange} />
+              <GexChart asset={asset} />
             </ChartColumn>
           </ChartRow>
         </ContentArea>

@@ -20,8 +20,8 @@ app.get('/api/dex', async (req, res) => {
     
     const response = await jaxClient.getDex({
       underlyingAsset: underlyingAsset || 'SPY',
-      startStrikePrice: parseInt(startStrikePrice) || 400,
-      endStrikePrice: parseInt(endStrikePrice) || 500
+      startStrikePrice: startStrikePrice ? parseInt(startStrikePrice) : 0,
+      endStrikePrice: endStrikePrice ? parseInt(endStrikePrice) : 50
     });
 
     res.json(response);

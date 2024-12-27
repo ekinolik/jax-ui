@@ -10,12 +10,40 @@ const HeaderContainer = styled.header`
   align-items: center;
 `;
 
-const Header = () => {
+const AssetInput = styled.input`
+  padding: 8px 12px;
+  border-radius: 4px;
+  border: 1px solid #333;
+  background: #2a2a2a;
+  color: white;
+  font-size: 14px;
+  width: 120px;
+
+  &::placeholder {
+    color: #888;
+  }
+
+  &:hover {
+    border-color: #444;
+  }
+
+  &:focus {
+    outline: none;
+    border-color: #666;
+  }
+`;
+
+const Header = ({ asset, onAssetChange }) => {
   return (
     <HeaderContainer>
       <h1>Jax Dashboard</h1>
       <div>
-        <input type="text" placeholder="Search stocks..." />
+        <AssetInput
+          type="text"
+          value={asset}
+          onChange={(e) => onAssetChange(e.target.value.toUpperCase())}
+          placeholder="Enter asset..."
+        />
       </div>
     </HeaderContainer>
   );

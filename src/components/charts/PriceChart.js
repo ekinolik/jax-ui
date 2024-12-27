@@ -85,13 +85,8 @@ const generateData = (timeRange) => {
   }];
 };
 
-const PriceChartContent = ({ isFullscreen, timeRange, onTimeRangeChange }) => {
+const PriceChartContent = ({ isFullscreen, timeRange, onTimeRangeChange, asset }) => {
   const data = generateData(timeRange);
-
-  const handleTimeRangeChange = (e) => {
-    e.stopPropagation();
-    onTimeRangeChange(e.target.value);
-  };
 
   const theme = {
     axis: {
@@ -130,15 +125,14 @@ const PriceChartContent = ({ isFullscreen, timeRange, onTimeRangeChange }) => {
 
   return (
     <>
-      <TimeRangeContainer onClick={e => e.stopPropagation()}>
+      <TimeRangeContainer>
         {timeRanges.map(({ label, value }) => (
           <RadioButton key={value}>
             <input
               type="radio"
-              name="timeRange"
               value={value}
               checked={timeRange === value}
-              onChange={handleTimeRangeChange}
+              onChange={onTimeRangeChange}
             />
             {label}
           </RadioButton>
@@ -239,14 +233,15 @@ const PriceChartContent = ({ isFullscreen, timeRange, onTimeRangeChange }) => {
 };
 
 // Wrapper component
-const PriceChart = () => {
-  const [timeRange, setTimeRange] = useState('1month');
+const PriceChart = ({ asset }) => {
+  const [timeRange, setTimeRange] = useState(timeRanges[0].value);
 
   return (
-    <ChartContainer title="Price Chart" fullWidth>
-      <PriceChartContent 
+    <ChartContainer title="Price">
+      <PriceChartContent
         timeRange={timeRange}
-        onTimeRangeChange={setTimeRange}
+        onTimeRangeChange={(e) => setTimeRange(e.target.value)}
+        asset={asset}
       />
     </ChartContainer>
   );

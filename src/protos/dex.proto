@@ -8,6 +8,7 @@ service DexService {
 
 message DexRequest {
   int32 dte = 1;
+  string asset = 2;
 }
 
 message DexResponse {

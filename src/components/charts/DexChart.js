@@ -44,12 +44,28 @@ const SelectGroup = styled.div`
 const DTE_OPTIONS = [20, 50, 180, 360, 500];
 const STRIKE_OPTIONS = [2, 20, 30, 50, 80, 100, 150, 200];
 
+const formatValue = (value) => {
+  // Invert the sign for display
+  const displayValue = -value;
+  const absValue = Math.abs(displayValue);
+  let formatted;
+  if (absValue >= 1000) {
+    formatted = `${(absValue / 1000).toFixed(2)}B`;
+  } else if (absValue >= 1) {
+    formatted = `${absValue.toFixed(2)}M`;
+  } else if (absValue >= 0.001) {
+    formatted = `${(absValue * 1000).toFixed(0)}K`;
+  } else {
+    formatted = absValue.toFixed(2);
+  }
+  return displayValue < 0 ? `-${formatted}` : formatted;
+};
+
 const transformApiData = (response, dte) => {
   console.log('Raw response in transformApiData:', JSON.stringify(response, null, 2));
-  const strikes = [];
   
   if (!response?.f?.[2]?.a) {
-    console.warn('No strike price data in response:', response);
+    console.warn('No valid data structure in response:', response);
     return [];
   }
 
@@ -57,46 +73,63 @@ const transformApiData = (response, dte) => {
   const today = new Date();
   const maxDate = new Date(today);
   maxDate.setDate(today.getDate() + dte);
+  console.log('Using DTE:', dte, 'Max date:', maxDate.toISOString());
 
-  // Process each strike price
-  Object.entries(response.f[2].a).forEach(([strike, strikeData]) => {
-    const dataPoint = {
-      strike: Number(strike)
-    };
+  // Transform the data into the format needed for the chart
+  const transformedData = Object.entries(response.f[2].a)
+    .map(([strike, strikeData]) => {
+      if (!strikeData?.value?.[0]) {
+        console.warn('Invalid strike data for strike', strike, ':', strikeData);
+        return null;
+      }
 
-    // The data is in strikeData.value[0] which contains all the date entries
-    if (strikeData.value && Array.isArray(strikeData.value[0])) {
+      const dataPoint = {
+        strike: Number(strike)
+      };
+
+      let hasValidData = false;
+
+      // Process each date entry
       strikeData.value[0].forEach(dateEntry => {
-        const date = dateEntry[0];
+        const [date, optionData] = dateEntry;
+        if (!date || !optionData?.[0]) {
+          console.warn('Invalid date entry:', dateEntry);
+          return;
+        }
+
         const expirationDate = new Date(date);
-        
+        if (isNaN(expirationDate.getTime())) {
+          console.warn('Invalid date:', date);
+          return;
+        }
+
         // Only include data for dates within the DTE range
         if (expirationDate <= maxDate) {
-          const optionData = dateEntry[1];
-          
-          if (optionData && Array.isArray(optionData[0])) {
-            // Process each option type (call/put)
-            optionData[0].forEach(([type, values]) => {
-              if (values && values.length > 0) {
-                const value = Number(values[0] || 0);
+          // Process each option type (call/put)
+          optionData[0].forEach(([type, values]) => {
+            if (values && values.length > 0) {
+              const value = Number(values[0] || 0);
+              if (!isNaN(value) && value !== 0) {
+                // Normalize values by dividing by 1 million
                 if (type === 'call') {
-                  dataPoint[`calls_${date}`] = -value; // Negative for visualization
+                  dataPoint[`calls_${date}`] = -Math.abs(value) / 1000000; // Keep calls on left but show as positive
+                  hasValidData = true;
                 } else if (type === 'put') {
-                  dataPoint[`puts_${date}`] = -value;
+                  dataPoint[`puts_${date}`] = Math.abs(value) / 1000000;  // Keep puts on right but show as negative
+                  hasValidData = true;
                 }
               }
-            });
-          }
+            }
+          });
         }
       });
-    }
 
-    console.log('Final dataPoint:', dataPoint);
-    strikes.push(dataPoint);
-  });
+      return hasValidData ? dataPoint : null;
+    })
+    .filter(Boolean);
 
-  console.log('Final transformed data:', strikes);
-  return strikes;
+  console.log('Transformed data:', JSON.stringify(transformedData, null, 2));
+  return transformedData;
 };
 
 const ChartWrapper = styled.div`
@@ -104,19 +137,32 @@ const ChartWrapper = styled.div`
   height: 100%;
 `;
 
-const DexChartContent = ({ isFullscreen, dte, onDteChange }) => {
-  const [strikes, setStrikes] = useState(30);
+const DexChartContent = ({ isFullscreen, dte, onDteChange, asset }) => {
+  const [strikes, setStrikes] = useState(STRIKE_OPTIONS[0]);
   const [rawData, setRawData] = useState(null);
   const [chartData, setChartData] = useState([]);
   const [expirationDates, setExpirationDates] = useState([]);
   const [error, setError] = useState(null);
+  const [debouncedAsset, setDebouncedAsset] = useState(asset);
 
-  // Fetch data only once on mount
+  // Debounce the asset value
   useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedAsset(asset);
+    }, 500); // Wait 500ms after last change before updating
+
+    return () => clearTimeout(timer);
+  }, [asset]);
+
+  // Fetch data when debounced asset changes
+  useEffect(() => {
+    if (!debouncedAsset) return; // Don't fetch if no asset is selected
+    if (debouncedAsset.length < 2) return; // Don't fetch if asset is too short
+
     const fetchData = async () => {
       try {
-        console.log('Fetching DEX data...');
-        const response = await fetch(`${process.env.REACT_APP_PROXY_URL || 'http://localhost:3001'}/api/dex?underlyingAsset=SPY&startStrikePrice=590&endStrikePrice=610`);
+        console.log('Fetching DEX data for asset:', debouncedAsset);
+        const response = await fetch(`${process.env.REACT_APP_PROXY_URL || 'http://localhost:3001'}/api/dex?underlyingAsset=${debouncedAsset}&startStrikePrice=0&endStrikePrice=50`);
         
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -132,23 +178,19 @@ const DexChartContent = ({ isFullscreen, dte, onDteChange }) => {
     };
 
     fetchData();
-  }, []); // Empty dependency array - fetch only once
+  }, [debouncedAsset]); // Refetch when debounced asset changes
 
   // Transform data whenever DTE or rawData changes
   useEffect(() => {
     if (!rawData) return;
 
+    console.log('Starting data transformation with DTE:', dte);
     const transformedData = transformApiData(rawData, dte);
-    console.log('Chart data structure:', {
-      data: transformedData,
-      sample_point: transformedData[0],
-      available_keys: transformedData[0] ? Object.keys(transformedData[0]) : [],
-      num_points: transformedData.length
-    });
     
     // Extract unique dates
     const dates = new Set();
     transformedData.forEach(dataPoint => {
+      console.log('Processing dataPoint:', JSON.stringify(dataPoint, null, 2));
       Object.keys(dataPoint).forEach(key => {
         if (key !== 'strike') {
           const date = key.replace(/^(calls|puts)_/, '');
@@ -158,15 +200,26 @@ const DexChartContent = ({ isFullscreen, dte, onDteChange }) => {
     });
     
     const sortedDates = Array.from(dates).sort();
-    console.log('Available dates:', sortedDates);
-    
-    // Log the keys that will be used for the chart
-    const chartKeys = sortedDates.flatMap(date => [`calls_${date}`, `puts_${date}`]);
-    console.log('Chart keys:', chartKeys);
+    console.log('Chart setup:', {
+      transformedData: JSON.stringify(transformedData, null, 2),
+      sortedDates,
+      chartKeys: sortedDates.flatMap(date => [`calls_${date}`, `puts_${date}`]),
+      numDataPoints: transformedData.length,
+      samplePoint: transformedData[0]
+    });
     
     setExpirationDates(sortedDates);
     setChartData(transformedData);
   }, [dte, rawData]);
+
+  // Add effect to log state updates
+  useEffect(() => {
+    console.log('Chart state updated:', {
+      chartData,
+      expirationDates,
+      hasData: chartData.length > 0
+    });
+  }, [chartData, expirationDates]);
 
   return (
     <>
@@ -175,13 +228,11 @@ const DexChartContent = ({ isFullscreen, dte, onDteChange }) => {
           <label htmlFor="dex-dte-select" onClick={e => e.stopPropagation()}>DTE:</label>
           <Select
             id="dex-dte-select"
-            aria-label="DTE"
             value={dte}
             onClick={e => e.stopPropagation()}
             onChange={(e) => {
               e.stopPropagation();
-              const newDte = Number(e.target.value);
-              onDteChange(newDte);
+              onDteChange(parseInt(e.target.value, 10));
             }}
           >
             {DTE_OPTIONS.map(option => (
@@ -197,7 +248,7 @@ const DexChartContent = ({ isFullscreen, dte, onDteChange }) => {
             onClick={e => e.stopPropagation()}
             onChange={(e) => {
               e.stopPropagation();
-              setStrikes(Number(e.target.value));
+              setStrikes(parseInt(e.target.value, 10));
             }}
           >
             {STRIKE_OPTIONS.map(option => (
@@ -215,81 +266,116 @@ const DexChartContent = ({ isFullscreen, dte, onDteChange }) => {
 
       {chartData.length > 0 && (
         <ChartWrapper>
-          <ResponsiveBar
-            data={chartData}
-            keys={expirationDates.flatMap(date => [`calls_${date}`, `puts_${date}`])}
-            indexBy="strike"
-            margin={{ top: 50, right: 160, bottom: 50, left: 100 }}
-            padding={0.3}
-            layout="horizontal"
-            groupMode="stacked"
-            colors={({ id }) => {
-              // Extract the date from the key (remove 'calls_' or 'puts_' prefix)
-              const date = id.replace(/^(calls|puts)_/, '');
-              // Use nivo's color scheme but index by unique dates
-              const dateIndex = expirationDates.indexOf(date);
-              const colors = ['#e8c1a0', '#f47560', '#f1e15b', '#e8a838', '#61cdbb', '#97e3d5', '#1f77b4', '#ff7f0e'];
-              return colors[dateIndex % colors.length];
-            }}
-            axisBottom={{
-              tickSize: 5,
-              tickPadding: 5,
-              tickRotation: 0,
-              legend: 'Delta Exposure',
-              legendPosition: 'middle',
-              legendOffset: 40
-            }}
-            axisLeft={{
-              tickSize: 5,
-              tickPadding: 5,
-              tickRotation: 0,
-              legend: 'Strike Price',
-              legendPosition: 'middle',
-              legendOffset: -60
-            }}
-            gridXValues={[0]}
-            enableGridX={true}
-            enableGridY={false}
-            legends={[
-              {
-                dataFrom: 'keys',
-                anchor: 'right',
-                direction: 'column',
-                justify: false,
-                translateX: 120,
-                translateY: 0,
-                itemsSpacing: 2,
-                itemWidth: 140,
-                itemHeight: 20,
-                itemDirection: 'left-to-right',
-                itemOpacity: 0.85,
-                symbolSize: 20,
-                effects: [
-                  {
-                    on: 'hover',
-                    style: {
-                      itemOpacity: 1
-                    }
-                  }
-                ],
-                data: expirationDates.map((date, index) => {
+          {(() => {
+            // Calculate the maximum absolute value from the data
+            const maxValue = chartData.reduce((max, point) => {
+              const values = Object.entries(point)
+                .filter(([key]) => key !== 'strike')
+                .map(([_, value]) => Math.abs(value));
+              return Math.max(max, ...values);
+            }, 0);
+            
+            // Dynamic padding based on the value range
+            let bound;
+            if (maxValue >= 1000) { // Over 1B
+              bound = Math.ceil(maxValue * 1.1);
+            } else if (maxValue >= 100) { // 100M to 1B
+              bound = Math.ceil(maxValue * 1.2);
+            } else if (maxValue >= 10) { // 10M to 100M
+              bound = Math.ceil(maxValue * 1.3);
+            } else if (maxValue >= 1) { // 1M to 10M
+              bound = Math.ceil(maxValue * 1.5);
+            } else { // Under 1M
+              bound = Math.ceil(maxValue * 2); // Double the range for small values
+            }
+            
+            console.log('Scale bounds:', { maxValue, bound, padding: bound/maxValue });
+            
+            return (
+              <ResponsiveBar
+                data={chartData}
+                keys={expirationDates.flatMap(date => [`calls_${date}`, `puts_${date}`])}
+                indexBy="strike"
+                margin={{ top: 50, right: 160, bottom: 50, left: 100 }}
+                padding={0.3}
+                layout="horizontal"
+                groupMode="stacked"
+                colors={({ id }) => {
+                  // Extract the date from the key (remove 'calls_' or 'puts_' prefix)
+                  const date = id.replace(/^(calls|puts)_/, '');
+                  // Use nivo's color scheme but index by unique dates
+                  const dateIndex = expirationDates.indexOf(date);
                   const colors = ['#e8c1a0', '#f47560', '#f1e15b', '#e8a838', '#61cdbb', '#97e3d5', '#1f77b4', '#ff7f0e'];
-                  return {
-                    id: date,
-                    label: date,
-                    color: colors[index % colors.length]
-                  };
-                })
-              }
-            ]}
-            animate={true}
-            motionStiffness={90}
-            motionDamping={15}
-            enableLabel={false}
-            valueScale={{ type: 'linear' }}
-            indexScale={{ type: 'band', round: true }}
-            reverse={false}
-          />
+                  return colors[dateIndex % colors.length];
+                }}
+                axisBottom={{
+                  tickSize: 5,
+                  tickPadding: 5,
+                  tickRotation: 0,
+                  legend: 'Delta Exposure',
+                  legendPosition: 'middle',
+                  legendOffset: 40,
+                  format: formatValue
+                }}
+                axisLeft={{
+                  tickSize: 5,
+                  tickPadding: 5,
+                  tickRotation: 0,
+                  legend: 'Strike Price',
+                  legendPosition: 'middle',
+                  legendOffset: -60
+                }}
+                gridXValues={[0]}
+                enableGridX={true}
+                enableGridY={false}
+                valueScale={{ 
+                  type: 'linear',
+                  min: -bound,
+                  max: bound,
+                  stacked: true,
+                  reverse: false
+                }}
+                valueFormat={value => formatValue(value)}
+                animate={true}
+                motionStiffness={90}
+                motionDamping={15}
+                enableLabel={false}
+                indexScale={{ type: 'band', round: true }}
+                legends={[
+                  {
+                    dataFrom: 'keys',
+                    anchor: 'right',
+                    direction: 'column',
+                    justify: false,
+                    translateX: 120,
+                    translateY: 0,
+                    itemsSpacing: 2,
+                    itemWidth: 140,
+                    itemHeight: 20,
+                    itemDirection: 'left-to-right',
+                    itemOpacity: 0.85,
+                    symbolSize: 20,
+                    effects: [
+                      {
+                        on: 'hover',
+                        style: {
+                          itemOpacity: 1
+                        }
+                      }
+                    ],
+                    data: expirationDates.map((date, index) => {
+                      const colors = ['#e8c1a0', '#f47560', '#f1e15b', '#e8a838', '#61cdbb', '#97e3d5', '#1f77b4', '#ff7f0e'];
+                      return {
+                        id: date,
+                        label: date,
+                        color: colors[index % colors.length]
+                      };
+                    })
+                  }
+                ]}
+              />
+            );
+          })()}
         </ChartWrapper>
       )}
     </>
@@ -297,10 +383,16 @@ const DexChartContent = ({ isFullscreen, dte, onDteChange }) => {
 };
 
 // Wrapper component
-const DexChart = ({ dte, onDteChange }) => {
+const DexChart = ({ asset }) => {
+  const [dte, setDte] = useState(DTE_OPTIONS[0]);
+
   return (
-    <ChartContainer title="Delta Exposure (DEX) Chart" data-testid="delta-exposure-dex-chart">
-      <DexChartContent dte={dte} onDteChange={onDteChange} />
+    <ChartContainer title="DEX">
+      <DexChartContent
+        dte={dte}
+        onDteChange={setDte}
+        asset={asset}
+      />
     </ChartContainer>
   );
 };
