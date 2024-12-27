@@ -106,52 +106,25 @@ const ChartWrapper = styled.div`
 
 const DexChartContent = ({ isFullscreen, dte, onDteChange }) => {
   const [strikes, setStrikes] = useState(30);
+  const [rawData, setRawData] = useState(null);
   const [chartData, setChartData] = useState([]);
   const [expirationDates, setExpirationDates] = useState([]);
   const [error, setError] = useState(null);
 
+  // Fetch data only once on mount
   useEffect(() => {
     const fetchData = async () => {
       try {
         console.log('Fetching DEX data...');
-        const response = await fetch(`${process.env.REACT_APP_PROXY_URL || 'http://localhost:3001'}/api/dex?underlyingAsset=SPY&startStrikePrice=575&endStrikePrice=625`);
+        const response = await fetch(`${process.env.REACT_APP_PROXY_URL || 'http://localhost:3001'}/api/dex?underlyingAsset=SPY&startStrikePrice=590&endStrikePrice=610`);
         
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         
         const data = await response.json();
+        setRawData(data);
         
-        // Pass dte to transformApiData
-        const transformedData = transformApiData(data, dte);
-        console.log('Chart data structure:', {
-          data: transformedData,
-          sample_point: transformedData[0], // Log first data point in detail
-          available_keys: transformedData[0] ? Object.keys(transformedData[0]) : [],
-          num_points: transformedData.length
-        });
-        
-        // Extract unique dates
-        const dates = new Set();
-        transformedData.forEach(dataPoint => {
-          Object.keys(dataPoint).forEach(key => {
-            if (key !== 'strike') {
-              const date = key.replace(/^(calls|puts)_/, '');
-              dates.add(date);
-            }
-          });
-        });
-        
-        const sortedDates = Array.from(dates).sort();
-        console.log('Available dates:', sortedDates);
-        
-        // Log the keys that will be used for the chart
-        const chartKeys = sortedDates.flatMap(date => [`calls_${date}`, `puts_${date}`]);
-        console.log('Chart keys:', chartKeys);
-        
-        setExpirationDates(sortedDates);
-        setChartData(transformedData);
-
       } catch (err) {
         console.error('Error fetching DEX data:', err);
         setError(`Error: ${err.message}`);
@@ -159,7 +132,41 @@ const DexChartContent = ({ isFullscreen, dte, onDteChange }) => {
     };
 
     fetchData();
-  }, [dte]);
+  }, []); // Empty dependency array - fetch only once
+
+  // Transform data whenever DTE or rawData changes
+  useEffect(() => {
+    if (!rawData) return;
+
+    const transformedData = transformApiData(rawData, dte);
+    console.log('Chart data structure:', {
+      data: transformedData,
+      sample_point: transformedData[0],
+      available_keys: transformedData[0] ? Object.keys(transformedData[0]) : [],
+      num_points: transformedData.length
+    });
+    
+    // Extract unique dates
+    const dates = new Set();
+    transformedData.forEach(dataPoint => {
+      Object.keys(dataPoint).forEach(key => {
+        if (key !== 'strike') {
+          const date = key.replace(/^(calls|puts)_/, '');
+          dates.add(date);
+        }
+      });
+    });
+    
+    const sortedDates = Array.from(dates).sort();
+    console.log('Available dates:', sortedDates);
+    
+    // Log the keys that will be used for the chart
+    const chartKeys = sortedDates.flatMap(date => [`calls_${date}`, `puts_${date}`]);
+    console.log('Chart keys:', chartKeys);
+    
+    setExpirationDates(sortedDates);
+    setChartData(transformedData);
+  }, [dte, rawData]);
 
   return (
     <>
@@ -269,7 +276,7 @@ const DexChartContent = ({ isFullscreen, dte, onDteChange }) => {
                   const colors = ['#e8c1a0', '#f47560', '#f1e15b', '#e8a838', '#61cdbb', '#97e3d5', '#1f77b4', '#ff7f0e'];
                   return {
                     id: date,
-                    label: `Exp: ${date}`,
+                    label: date,
                     color: colors[index % colors.length]
                   };
                 })
