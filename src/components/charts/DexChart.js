@@ -44,7 +44,7 @@ const SelectGroup = styled.div`
 const DTE_OPTIONS = [20, 50, 180, 360, 500];
 const STRIKE_OPTIONS = [2, 20, 30, 50, 80, 100, 150, 200];
 
-const transformApiData = (response) => {
+const transformApiData = (response, dte) => {
   console.log('Raw response in transformApiData:', JSON.stringify(response, null, 2));
   const strikes = [];
   
@@ -52,6 +52,11 @@ const transformApiData = (response) => {
     console.warn('No strike price data in response:', response);
     return [];
   }
+
+  // Calculate the maximum allowed date based on DTE
+  const today = new Date();
+  const maxDate = new Date(today);
+  maxDate.setDate(today.getDate() + dte);
 
   // Process each strike price
   Object.entries(response.f[2].a).forEach(([strike, strikeData]) => {
@@ -63,20 +68,25 @@ const transformApiData = (response) => {
     if (strikeData.value && Array.isArray(strikeData.value[0])) {
       strikeData.value[0].forEach(dateEntry => {
         const date = dateEntry[0];
-        const optionData = dateEntry[1];
+        const expirationDate = new Date(date);
         
-        if (optionData && Array.isArray(optionData[0])) {
-          // Process each option type (call/put)
-          optionData[0].forEach(([type, values]) => {
-            if (values && values.length > 0) {
-              const value = Number(values[0] || 0);
-              if (type === 'call') {
-                dataPoint[`calls_${date}`] = -value; // Negative for visualization
-              } else if (type === 'put') {
-                dataPoint[`puts_${date}`] = -value;
+        // Only include data for dates within the DTE range
+        if (expirationDate <= maxDate) {
+          const optionData = dateEntry[1];
+          
+          if (optionData && Array.isArray(optionData[0])) {
+            // Process each option type (call/put)
+            optionData[0].forEach(([type, values]) => {
+              if (values && values.length > 0) {
+                const value = Number(values[0] || 0);
+                if (type === 'call') {
+                  dataPoint[`calls_${date}`] = -value; // Negative for visualization
+                } else if (type === 'put') {
+                  dataPoint[`puts_${date}`] = -value;
+                }
               }
-            }
-          });
+            });
+          }
         }
       });
     }
@@ -104,7 +114,7 @@ const DexChartContent = ({ isFullscreen, dte, onDteChange }) => {
     const fetchData = async () => {
       try {
         console.log('Fetching DEX data...');
-        const response = await fetch(`${process.env.REACT_APP_PROXY_URL || 'http://localhost:3001'}/api/dex?underlyingAsset=SPY&startStrikePrice=450&endStrikePrice=455`);
+        const response = await fetch(`${process.env.REACT_APP_PROXY_URL || 'http://localhost:3001'}/api/dex?underlyingAsset=SPY&startStrikePrice=575&endStrikePrice=625`);
         
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -112,8 +122,8 @@ const DexChartContent = ({ isFullscreen, dte, onDteChange }) => {
         
         const data = await response.json();
         
-        // Transform and set chart data
-        const transformedData = transformApiData(data);
+        // Pass dte to transformApiData
+        const transformedData = transformApiData(data, dte);
         console.log('Chart data structure:', {
           data: transformedData,
           sample_point: transformedData[0], // Log first data point in detail
@@ -153,32 +163,38 @@ const DexChartContent = ({ isFullscreen, dte, onDteChange }) => {
 
   return (
     <>
-      <ControlsContainer>
-        <SelectGroup>
-          <label htmlFor="dex-dte-select">DTE:</label>
+      <ControlsContainer onClick={e => e.stopPropagation()}>
+        <SelectGroup onClick={e => e.stopPropagation()}>
+          <label htmlFor="dex-dte-select" onClick={e => e.stopPropagation()}>DTE:</label>
           <Select
             id="dex-dte-select"
             aria-label="DTE"
             value={dte}
+            onClick={e => e.stopPropagation()}
             onChange={(e) => {
+              e.stopPropagation();
               const newDte = Number(e.target.value);
               onDteChange(newDte);
             }}
           >
             {DTE_OPTIONS.map(option => (
-              <option key={option} value={option}>{option}</option>
+              <option key={option} value={option} onClick={e => e.stopPropagation()}>{option}</option>
             ))}
           </Select>
         </SelectGroup>
-        <SelectGroup>
-          <label htmlFor="strikes">Strikes:</label>
+        <SelectGroup onClick={e => e.stopPropagation()}>
+          <label htmlFor="strikes" onClick={e => e.stopPropagation()}>Strikes:</label>
           <Select
             id="strikes"
             value={strikes}
-            onChange={(e) => setStrikes(Number(e.target.value))}
+            onClick={e => e.stopPropagation()}
+            onChange={(e) => {
+              e.stopPropagation();
+              setStrikes(Number(e.target.value));
+            }}
           >
             {STRIKE_OPTIONS.map(option => (
-              <option key={option} value={option}>{option}</option>
+              <option key={option} value={option} onClick={e => e.stopPropagation()}>{option}</option>
             ))}
           </Select>
         </SelectGroup>
@@ -200,7 +216,14 @@ const DexChartContent = ({ isFullscreen, dte, onDteChange }) => {
             padding={0.3}
             layout="horizontal"
             groupMode="stacked"
-            colors={{ scheme: 'nivo' }}
+            colors={({ id }) => {
+              // Extract the date from the key (remove 'calls_' or 'puts_' prefix)
+              const date = id.replace(/^(calls|puts)_/, '');
+              // Use nivo's color scheme but index by unique dates
+              const dateIndex = expirationDates.indexOf(date);
+              const colors = ['#e8c1a0', '#f47560', '#f1e15b', '#e8a838', '#61cdbb', '#97e3d5', '#1f77b4', '#ff7f0e'];
+              return colors[dateIndex % colors.length];
+            }}
             axisBottom={{
               tickSize: 5,
               tickPadding: 5,
@@ -233,7 +256,23 @@ const DexChartContent = ({ isFullscreen, dte, onDteChange }) => {
                 itemHeight: 20,
                 itemDirection: 'left-to-right',
                 itemOpacity: 0.85,
-                symbolSize: 20
+                symbolSize: 20,
+                effects: [
+                  {
+                    on: 'hover',
+                    style: {
+                      itemOpacity: 1
+                    }
+                  }
+                ],
+                data: expirationDates.map((date, index) => {
+                  const colors = ['#e8c1a0', '#f47560', '#f1e15b', '#e8a838', '#61cdbb', '#97e3d5', '#1f77b4', '#ff7f0e'];
+                  return {
+                    id: date,
+                    label: `Exp: ${date}`,
+                    color: colors[index % colors.length]
+                  };
+                })
               }
             ]}
             animate={true}
