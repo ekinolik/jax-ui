@@ -144,6 +144,7 @@ const DexChartContent = ({ isFullscreen, dte, onDteChange, asset }) => {
   const [expirationDates, setExpirationDates] = useState([]);
   const [error, setError] = useState(null);
   const [debouncedAsset, setDebouncedAsset] = useState(asset);
+  const [lastPrice, setLastPrice] = useState(null);
 
   // Debounce the asset value
   useEffect(() => {
@@ -154,25 +155,38 @@ const DexChartContent = ({ isFullscreen, dte, onDteChange, asset }) => {
     return () => clearTimeout(timer);
   }, [asset]);
 
-  // Fetch data when debounced asset changes
+  // Fetch last trade price and then DEX data when asset changes
   useEffect(() => {
     if (!debouncedAsset) return; // Don't fetch if no asset is selected
     if (debouncedAsset.length < 2) return; // Don't fetch if asset is too short
 
     const fetchData = async () => {
       try {
-        console.log('Fetching DEX data for asset:', debouncedAsset);
-        const response = await fetch(`${process.env.REACT_APP_PROXY_URL || 'http://localhost:3001'}/api/dex?underlyingAsset=${debouncedAsset}&startStrikePrice=0&endStrikePrice=50`);
+        // First fetch the last trade price
+        console.log('Fetching last trade price for asset:', debouncedAsset);
+        const priceResponse = await fetch(`${process.env.REACT_APP_PROXY_URL || 'http://localhost:3001'}/api/market/last-price?symbol=${debouncedAsset}`);
         
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+        if (!priceResponse.ok) {
+          throw new Error(`HTTP error! status: ${priceResponse.status}`);
         }
         
-        const data = await response.json();
-        setRawData(data);
+        const priceData = await priceResponse.json();
+        setLastPrice(priceData.price);
+
+        // Then fetch DEX data
+        console.log('Fetching DEX data for asset:', debouncedAsset);
+        const dexResponse = await fetch(`${process.env.REACT_APP_PROXY_URL || 'http://localhost:3001'}/api/dex?underlyingAsset=${debouncedAsset}&startStrikePrice=0&endStrikePrice=50`);
+        
+        if (!dexResponse.ok) {
+          throw new Error(`HTTP error! status: ${dexResponse.status}`);
+        }
+        
+        const dexData = await dexResponse.json();
+        setRawData(dexData);
+        setError(null);
         
       } catch (err) {
-        console.error('Error fetching DEX data:', err);
+        console.error('Error fetching data:', err);
         setError(`Error: ${err.message}`);
       }
     };

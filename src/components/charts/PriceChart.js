@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ResponsiveLine } from '@nivo/line';
 import styled from 'styled-components';
 import ChartContainer from '../common/ChartContainer';
@@ -37,7 +37,7 @@ const timeRanges = [
 ];
 
 // Mock data generator based on time range
-const generateData = (timeRange) => {
+const generateData = (timeRange, lastPrice = 100) => {
   const now = new Date();
   const data = [];
   let points;
@@ -69,13 +69,18 @@ const generateData = (timeRange) => {
       interval = 60 * 60 * 1000;
   }
 
+  // Generate random data around the last price
+  const volatility = lastPrice * 0.02; // 2% volatility
   for (let i = points - 1; i >= 0; i--) {
     const date = new Date(now - (i * interval));
+    const randomChange = (Math.random() - 0.5) * volatility;
+    const price = i === 0 ? lastPrice : lastPrice + randomChange;
+
     data.push({
       x: timeRange === '1day' 
         ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         : date.toLocaleDateString([], { month: 'short', day: 'numeric' }),
-      y: Math.floor(Math.random() * 50) + 100 // Random price between 100 and 150
+      y: Number(price.toFixed(2))
     });
   }
 
@@ -86,7 +91,49 @@ const generateData = (timeRange) => {
 };
 
 const PriceChartContent = ({ isFullscreen, timeRange, onTimeRangeChange, asset }) => {
-  const data = generateData(timeRange);
+  const [lastPrice, setLastPrice] = useState(null);
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [debouncedAsset, setDebouncedAsset] = useState(asset);
+
+  // Debounce the asset value
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedAsset(asset);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [asset]);
+
+  // Fetch last trade price when asset changes
+  useEffect(() => {
+    if (!debouncedAsset || debouncedAsset.length < 2) return;
+
+    const fetchLastPrice = async () => {
+      setLoading(true);
+      try {
+        const response = await fetch(`${process.env.REACT_APP_PROXY_URL || 'http://localhost:3001'}/api/market/last-price?symbol=${debouncedAsset}`);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        setLastPrice(data.price);
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching last trade price:', err);
+        setError(`Error: ${err.message}`);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLastPrice();
+  }, [debouncedAsset]);
+
+  // Generate mock data starting from the last price if available
+  const data = lastPrice !== null ? generateData(timeRange, lastPrice) : generateData(timeRange, 100);
 
   const theme = {
     axis: {
@@ -138,6 +185,19 @@ const PriceChartContent = ({ isFullscreen, timeRange, onTimeRangeChange, asset }
           </RadioButton>
         ))}
       </TimeRangeContainer>
+
+      {loading && (
+        <div style={{ color: '#666', marginBottom: '1rem' }}>
+          Loading price data...
+        </div>
+      )}
+
+      {error && (
+        <div style={{ color: 'red', marginBottom: '1rem' }}>
+          {error}
+        </div>
+      )}
+
       <ResponsiveLine
         data={data}
         margin={isFullscreen ? 
