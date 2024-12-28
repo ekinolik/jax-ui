@@ -126,7 +126,9 @@ const transformApiData = (response, dte) => {
 
       return hasValidData ? dataPoint : null;
     })
-    .filter(Boolean);
+    .filter(Boolean)
+    // Sort by strike price in descending order
+    .sort((a, b) => b.strike - a.strike);
 
   console.log('Transformed data:', JSON.stringify(transformedData, null, 2));
   return transformedData;
@@ -310,7 +312,7 @@ const DexChartContent = ({ isFullscreen, dte, onDteChange, asset }) => {
                 data={chartData}
                 keys={expirationDates.flatMap(date => [`calls_${date}`, `puts_${date}`])}
                 indexBy="strike"
-                margin={{ top: 50, right: 160, bottom: 50, left: 100 }}
+                margin={{ top: 50, right: 20, bottom: 50, left: 75 }}
                 padding={0.3}
                 layout="horizontal"
                 groupMode="stacked"
@@ -329,15 +331,25 @@ const DexChartContent = ({ isFullscreen, dte, onDteChange, asset }) => {
                   legend: 'Delta Exposure',
                   legendPosition: 'middle',
                   legendOffset: 40,
-                  format: formatValue
+                  format: formatValue,
+                  tickValues: [
+                    -bound,           // Minimum value
+                    -bound * 2/3,     // One-third from min
+                    -bound * 1/3,     // Two-thirds from min
+                    0,                // Center
+                    bound * 1/3,      // One-third from center
+                    bound * 2/3,      // Two-thirds from center
+                    bound            // Maximum value
+                  ]
                 }}
                 axisLeft={{
-                  tickSize: 5,
-                  tickPadding: 5,
+                  tickSize: 15,
+                  tickPadding: 15,
                   tickRotation: 0,
                   legend: 'Strike Price',
                   legendPosition: 'middle',
-                  legendOffset: -60
+                  legendOffset: -70,
+                  format: value => value.toFixed(2)
                 }}
                 gridXValues={[0]}
                 enableGridX={true}
@@ -358,10 +370,10 @@ const DexChartContent = ({ isFullscreen, dte, onDteChange, asset }) => {
                 legends={[
                   {
                     dataFrom: 'keys',
-                    anchor: 'right',
+                    anchor: 'top-right',
                     direction: 'column',
                     justify: false,
-                    translateX: 120,
+                    translateX: 50,
                     translateY: 0,
                     itemsSpacing: 2,
                     itemWidth: 140,
