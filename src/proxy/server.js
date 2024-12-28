@@ -52,10 +52,15 @@ app.get('/api/market/last-price', async (req, res) => {
 
     // Transform the response to include the price field
     const transformedResponse = {
-      price: response.price || response.lastPrice || response.last_price || response.value,
-      timestamp: response.timestamp,
-      symbol: response.symbol || symbol
+      price: Number(response?.u?.[0]),  // Price is first element in u array
+      timestamp: Number(response?.u?.[2]),  // Timestamp is third element
+      symbol: symbol
     };
+
+    if (typeof transformedResponse.price !== 'number' || isNaN(transformedResponse.price)) {
+      console.error('Invalid price in response:', response);
+      return res.status(500).json({ error: 'Invalid price data received' });
+    }
 
     res.json(transformedResponse);
   } catch (error) {
