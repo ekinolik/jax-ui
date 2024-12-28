@@ -127,8 +127,8 @@ const transformApiData = (response, dte) => {
       return hasValidData ? dataPoint : null;
     })
     .filter(Boolean)
-    // Sort by strike price in descending order
-    .sort((a, b) => b.strike - a.strike);
+    // Sort by strike price in ascending order
+    .sort((a, b) => a.strike - b.strike);
 
   console.log('Transformed data:', JSON.stringify(transformedData, null, 2));
   return transformedData;
