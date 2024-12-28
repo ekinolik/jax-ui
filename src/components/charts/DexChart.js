@@ -42,7 +42,7 @@ const SelectGroup = styled.div`
 `;
 
 const DTE_OPTIONS = [20, 50, 180, 360, 500];
-const STRIKE_OPTIONS = [2, 20, 30, 50, 80, 100, 150, 200];
+const STRIKE_OPTIONS = [20, 30, 50, 80, 100, 150, 200];
 
 const formatValue = (value) => {
   // Invert the sign for display
@@ -138,7 +138,7 @@ const ChartWrapper = styled.div`
 `;
 
 const DexChartContent = ({ isFullscreen, dte, onDteChange, asset }) => {
-  const [strikes, setStrikes] = useState(STRIKE_OPTIONS[0]);
+  const [strikes, setStrikes] = useState(30);
   const [rawData, setRawData] = useState(null);
   const [chartData, setChartData] = useState([]);
   const [expirationDates, setExpirationDates] = useState([]);
@@ -175,7 +175,7 @@ const DexChartContent = ({ isFullscreen, dte, onDteChange, asset }) => {
 
         // Then fetch DEX data
         console.log('Fetching DEX data for asset:', debouncedAsset);
-        const dexResponse = await fetch(`${process.env.REACT_APP_PROXY_URL || 'http://localhost:3001'}/api/dex?underlyingAsset=${debouncedAsset}&startStrikePrice=0&endStrikePrice=50`);
+        const dexResponse = await fetch(`${process.env.REACT_APP_PROXY_URL || 'http://localhost:3001'}/api/dex?underlyingAsset=${debouncedAsset}&numStrikes=${strikes}`);
         
         if (!dexResponse.ok) {
           throw new Error(`HTTP error! status: ${dexResponse.status}`);
@@ -192,7 +192,7 @@ const DexChartContent = ({ isFullscreen, dte, onDteChange, asset }) => {
     };
 
     fetchData();
-  }, [debouncedAsset]); // Refetch when debounced asset changes
+  }, [debouncedAsset, strikes]); // Refetch when debounced asset or strikes changes
 
   // Transform data whenever DTE or rawData changes
   useEffect(() => {
@@ -398,7 +398,7 @@ const DexChartContent = ({ isFullscreen, dte, onDteChange, asset }) => {
 
 // Wrapper component
 const DexChart = ({ asset }) => {
-  const [dte, setDte] = useState(DTE_OPTIONS[0]);
+  const [dte, setDte] = useState(50);
 
   return (
     <ChartContainer title="DEX">

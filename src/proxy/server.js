@@ -23,12 +23,11 @@ console.log('JAX client initialized');
 // Endpoint to get DEX data
 app.get('/api/dex', async (req, res) => {
   try {
-    const { underlyingAsset, startStrikePrice, endStrikePrice } = req.query;
+    const { underlyingAsset, numStrikes } = req.query;
     
-    const response = await jaxClient.getDex({
+    const response = await jaxClient.getDexByStrikes({
       underlyingAsset: underlyingAsset || 'SPY',
-      startStrikePrice: startStrikePrice ? parseInt(startStrikePrice) : 0,
-      endStrikePrice: endStrikePrice ? parseInt(endStrikePrice) : 50
+      numStrikes: numStrikes ? parseInt(numStrikes) : 50
     });
 
     res.json(response);
@@ -47,14 +46,10 @@ app.get('/api/market/last-price', async (req, res) => {
       return res.status(400).json({ error: 'Symbol is required' });
     }
 
-    console.log('Attempting to fetch last trade price for symbol:', symbol);
-    
     const response = await jaxClient.getLastTrade({
       ticker: symbol
     });
 
-    console.log('Raw response from JAX server:', JSON.stringify(response, null, 2));
-    
     // Transform the response to include the price field
     const transformedResponse = {
       price: response.price || response.lastPrice || response.last_price || response.value,
@@ -62,7 +57,6 @@ app.get('/api/market/last-price', async (req, res) => {
       symbol: response.symbol || symbol
     };
 
-    console.log('Transformed response:', transformedResponse);
     res.json(transformedResponse);
   } catch (error) {
     console.error('Detailed error in last trade price endpoint:', {
