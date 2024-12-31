@@ -310,13 +310,17 @@ const DexChartContent = ({ isFullscreen, dte, onDteChange, asset }) => {
             return (
               <ResponsiveBar
                 data={chartData}
-                keys={expirationDates.flatMap(date => [`calls_${date}`, `puts_${date}`])}
+                keys={[
+                  'spot_line',
+                  ...expirationDates.flatMap(date => [`calls_${date}`, `puts_${date}`])
+                ]}
                 indexBy="strike"
                 margin={{ top: 50, right: 20, bottom: 50, left: 75 }}
                 padding={0.3}
                 layout="horizontal"
                 groupMode="stacked"
                 colors={({ id }) => {
+                  if (id === 'spot_line') return '#ff0000';
                   // Extract the date from the key (remove 'calls_' or 'puts_' prefix)
                   const date = id.replace(/^(calls|puts)_/, '');
                   // Use nivo's color scheme but index by unique dates
