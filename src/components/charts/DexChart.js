@@ -6,7 +6,7 @@ const DexChart = ({ asset }) => {
   const [dte, setDte] = useState(50);
 
   return (
-    <ChartContainer title="DEX" fullWidth>
+    <ChartContainer title="DEX" fullWidth isDynamic>
       <OptionChartContent
         dte={dte}
         onDteChange={setDte}

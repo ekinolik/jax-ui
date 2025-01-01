@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ResponsiveBar } from '@nivo/bar';
 import styled from 'styled-components';
-import ChartContainer from './ChartContainer';
 
 export const ControlsContainer = styled.div`
   display: flex;
@@ -198,7 +197,6 @@ export const OptionChartContent = ({
   const [expirationDates, setExpirationDates] = useState([]);
   const [error, setError] = useState(null);
   const [debouncedAsset, setDebouncedAsset] = useState(asset);
-  const [lastPrice, setLastPrice] = useState(null);
 
   // Debounce the asset value
   useEffect(() => {
@@ -209,25 +207,14 @@ export const OptionChartContent = ({
     return () => clearTimeout(timer);
   }, [asset]);
 
-  // Fetch last trade price and then option data when asset changes
+  // Fetch option data when asset changes
   useEffect(() => {
     if (!debouncedAsset) return; // Don't fetch if no asset is selected
     if (debouncedAsset.length < 2) return; // Don't fetch if asset is too short
 
     const fetchData = async () => {
       try {
-        // First fetch the last trade price
-        console.log('Fetching last trade price for asset:', debouncedAsset);
-        const priceResponse = await fetch(`${process.env.REACT_APP_PROXY_URL || 'http://localhost:3001'}/api/market/last-price?symbol=${debouncedAsset}`);
-        
-        if (!priceResponse.ok) {
-          throw new Error(`HTTP error! status: ${priceResponse.status}`);
-        }
-        
-        const priceData = await priceResponse.json();
-        setLastPrice(priceData.price);
-
-        // Then fetch option data
+        // Fetch option data
         console.log(`Fetching ${chartType.toUpperCase()} data for asset:`, debouncedAsset);
         const dataResponse = await fetch(`${process.env.REACT_APP_PROXY_URL || 'http://localhost:3001'}/api/${chartType}?underlyingAsset=${debouncedAsset}&numStrikes=${strikes}`);
         
@@ -302,12 +289,19 @@ export const OptionChartContent = ({
 
   const bound = calculateBound(maxValue);
 
+  // Calculate height based on number of strikes
+  // Original height was 550px for container, chart was ~470px (after subtracting padding and controls)
+  const baseHeight = 470; // Base chart height for 20 strikes
+  const heightPerStrike = baseHeight / 20; // How much height each strike should take
+  const chartHeight = Math.max(baseHeight, heightPerStrike * chartData.length);
+  const containerHeight = chartHeight + 80; // Add back padding and controls height
+
   if (error) {
     return <div>Error loading {chartType.toUpperCase()} data: {error}</div>;
   }
 
   return (
-    <>
+    <div style={{ height: containerHeight }}>
       <ControlsContainer onClick={e => e.stopPropagation()}>
         <SelectGroup>
           <label htmlFor={`${chartType}-dte-select`}>DTE:</label>
@@ -340,120 +334,122 @@ export const OptionChartContent = ({
           </Select>
         </SelectGroup>
       </ControlsContainer>
-      <ResponsiveBar
-        data={chartData}
-        keys={expirationDates.flatMap(date => [`calls_${date}`, `puts_${date}`])}
-        indexBy="strike"
-        layout="horizontal"
-        margin={isFullscreen ? 
-          { top: 40, right: 160, bottom: 100, left: 100 } : 
-          { top: 20, right: 130, bottom: 65, left: 80 }
-        }
-        padding={0.3}
-        valueScale={{ 
-          type: 'linear',
-          min: -bound,
-          max: bound,
-          stacked: true,
-          reverse: false
-        }}
-        indexScale={{ type: 'band', round: true }}
-        colors={({ id }) => {
-          // Extract the date from the key (remove 'calls_' or 'puts_' prefix)
-          const date = id.replace(/^(calls|puts)_/, '');
-          // Use nivo's color scheme but index by unique dates
-          const dateIndex = expirationDates.indexOf(date);
-          return CHART_COLORS[dateIndex % CHART_COLORS.length];
-        }}
-        borderColor={{ from: 'color', modifiers: [['darker', 1.6]] }}
-        axisTop={null}
-        axisRight={null}
-        axisBottom={{
-          tickSize: 5,
-          tickPadding: 5,
-          tickRotation: 0,
-          legend: title,
-          legendPosition: 'middle',
-          legendOffset: 45,
-          format: formatValue,
-          tickValues: [
-            -bound,           // Minimum value
-            -bound * 2/3,     // One-third from min
-            -bound * 1/3,     // Two-thirds from min
-            0,                // Center
-            bound * 1/3,      // One-third from center
-            bound * 2/3,      // Two-thirds from center
-            bound            // Maximum value
-          ]
-        }}
-        axisLeft={{
-          tickSize: 15,
-          tickPadding: 15,
-          tickRotation: 0,
-          format: value => value.toFixed(2),
-          legend: 'Strike Price',
-          legendPosition: 'middle',
-          legendOffset: -75
-        }}
-        enableLabel={false}
-        labelSkipWidth={12}
-        labelSkipHeight={12}
-        labelTextColor={{ from: 'color', modifiers: [['darker', 1.6]] }}
-        animate={true}
-        motionStiffness={90}
-        motionDamping={15}
-        tooltip={({ id, value, color }) => (
-          <div style={{ 
-            padding: 12,
-            color: '#333',
-            background: '#fff',
-            boxShadow: '0 3px 8px rgba(0,0,0,0.24)',
-            borderRadius: '6px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }}>
-            <div style={{
-              width: 12,
-              height: 12,
-              background: color,
-              borderRadius: '2px'
-            }} />
-            <div>
-              <strong>{id.split('_')[0]}</strong> ({id.split('_')[1]}): {formatValue(value)}
-            </div>
-          </div>
-        )}
-        legends={[
-          {
-            dataFrom: 'keys',
-            anchor: 'top-right',
-            direction: 'column',
-            justify: false,
-            translateX: 120,
-            translateY: 0,
-            itemsSpacing: 2,
-            itemWidth: 140,
-            itemHeight: 20,
-            itemDirection: 'left-to-right',
-            itemOpacity: 0.85,
-            symbolSize: 20,
-            effects: [
-              {
-                on: 'hover',
-                style: {
-                  itemOpacity: 1
-                }
-              }
-            ],
-            data: expirationDates.map((date, index) => ({
-              id: date,
-              label: date,
-              color: CHART_COLORS[index % CHART_COLORS.length]
-            }))
+      <div style={{ height: chartHeight }}>
+        <ResponsiveBar
+          data={chartData}
+          keys={expirationDates.flatMap(date => [`calls_${date}`, `puts_${date}`])}
+          indexBy="strike"
+          layout="horizontal"
+          margin={isFullscreen ? 
+            { top: 40, right: 160, bottom: 100, left: 100 } : 
+            { top: 20, right: 130, bottom: 65, left: 80 }
           }
-        ]}
-      />
-    </>
+          padding={0.3}
+          valueScale={{ 
+            type: 'linear',
+            min: -bound,
+            max: bound,
+            stacked: true,
+            reverse: false
+          }}
+          indexScale={{ type: 'band', round: true }}
+          colors={({ id }) => {
+            // Extract the date from the key (remove 'calls_' or 'puts_' prefix)
+            const date = id.replace(/^(calls|puts)_/, '');
+            // Use nivo's color scheme but index by unique dates
+            const dateIndex = expirationDates.indexOf(date);
+            return CHART_COLORS[dateIndex % CHART_COLORS.length];
+          }}
+          borderColor={{ from: 'color', modifiers: [['darker', 1.6]] }}
+          axisTop={null}
+          axisRight={null}
+          axisBottom={{
+            tickSize: 5,
+            tickPadding: 5,
+            tickRotation: 0,
+            legend: title,
+            legendPosition: 'middle',
+            legendOffset: 45,
+            format: formatValue,
+            tickValues: [
+              -bound,           // Minimum value
+              -bound * 2/3,     // One-third from min
+              -bound * 1/3,     // Two-thirds from min
+              0,                // Center
+              bound * 1/3,      // One-third from center
+              bound * 2/3,      // Two-thirds from center
+              bound            // Maximum value
+            ]
+          }}
+          axisLeft={{
+            tickSize: 15,
+            tickPadding: 15,
+            tickRotation: 0,
+            format: value => value.toFixed(2),
+            legend: 'Strike Price',
+            legendPosition: 'middle',
+            legendOffset: -75
+          }}
+          enableLabel={false}
+          labelSkipWidth={12}
+          labelSkipHeight={12}
+          labelTextColor={{ from: 'color', modifiers: [['darker', 1.6]] }}
+          animate={true}
+          motionStiffness={90}
+          motionDamping={15}
+          tooltip={({ id, value, color }) => (
+            <div style={{ 
+              padding: 12,
+              color: '#333',
+              background: '#fff',
+              boxShadow: '0 3px 8px rgba(0,0,0,0.24)',
+              borderRadius: '6px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <div style={{
+                width: 12,
+                height: 12,
+                background: color,
+                borderRadius: '2px'
+              }} />
+              <div>
+                <strong>{id.split('_')[0]}</strong> ({id.split('_')[1]}): {formatValue(value)}
+              </div>
+            </div>
+          )}
+          legends={[
+            {
+              dataFrom: 'keys',
+              anchor: 'top-right',
+              direction: 'column',
+              justify: false,
+              translateX: 120,
+              translateY: 0,
+              itemsSpacing: 2,
+              itemWidth: 140,
+              itemHeight: 20,
+              itemDirection: 'left-to-right',
+              itemOpacity: 0.85,
+              symbolSize: 20,
+              effects: [
+                {
+                  on: 'hover',
+                  style: {
+                    itemOpacity: 1
+                  }
+                }
+              ],
+              data: expirationDates.map((date, index) => ({
+                id: date,
+                label: date,
+                color: CHART_COLORS[index % CHART_COLORS.length]
+              }))
+            }
+          ]}
+        />
+      </div>
+    </div>
   );
 }; 

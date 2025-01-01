@@ -1,32 +1,41 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 
-const Wrapper = styled.div`
-  width: 100%;
-  position: relative;
+export const Wrapper = styled.div`
+  margin: 16px;
 `;
 
-const FixedWidthWrapper = styled.div`
+export const FixedWidthWrapper = styled.div`
   width: ${props => props.$fullWidth ? '100%' : '600px'};
-  margin: 0 auto;
 `;
 
-const Container = styled.div.attrs(props => ({
-  'data-testid': `${props.$title?.toLowerCase().replace(/[()]/g, '').replace(/\s+/g, '-')}`,
-  'data-fullscreen': props.$isFullscreen
-}))`
+export const Container = styled.div`
   background: white;
   border-radius: 8px;
+  padding: 16px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  padding: 1rem 1rem 4.5rem 1rem;
   height: ${props => props.$isFullscreen ? '100vh' : '550px'};
-  width: ${props => props.$isFullscreen ? '100vw' : '100%'};
-  position: ${props => props.$isFullscreen ? 'fixed' : 'relative'};
-  top: ${props => props.$isFullscreen ? '0' : 'auto'};
-  left: ${props => props.$isFullscreen ? '0' : 'auto'};
-  z-index: ${props => props.$isFullscreen ? '1000' : '1'};
-  transition: all 0.3s ease;
-  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  
+  &[data-fullscreen="true"] {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1000;
+    border-radius: 0;
+    padding: 32px;
+    height: 100vh;
+  }
+`;
+
+const DynamicContainer = styled(Container)`
+  height: ${props => props.$isFullscreen ? '100vh' : 'auto'};
+  min-height: ${props => props.$isFullscreen ? '100vh' : '550px'};
+  max-height: ${props => props.$isFullscreen ? '100vh' : 'none'};
 `;
 
 const Title = styled.h2`
@@ -44,21 +53,18 @@ const FullscreenButton = styled.button`
   padding: 4px;
   color: #666;
   font-size: 1.2rem;
-  transition: color 0.2s ease;
-
+  
   &:hover {
     color: #000;
   }
 `;
 
-const ChartContainer = ({ title, children, fullWidth }) => {
+const ChartContainer = ({ title, children, fullWidth, isDynamic = false }) => {
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const testId = title?.toLowerCase().replace(/[()]/g, '').replace(/\s+/g, '-');
+  const testId = title?.toLowerCase().replace(/\s+/g, '-');
+  const ContainerComponent = isDynamic ? DynamicContainer : Container;
 
-  const toggleFullscreen = (e) => {
-    if (e) {
-      e.stopPropagation();
-    }
+  const toggleFullscreen = () => {
     setIsFullscreen(prev => !prev);
   };
 
@@ -77,11 +83,11 @@ const ChartContainer = ({ title, children, fullWidth }) => {
   }, []);
 
   const content = (
-    <Container 
-      $title={title}
+    <ContainerComponent 
+      data-testid={testId}
+      data-fullscreen={isFullscreen.toString()}
       $isFullscreen={isFullscreen}
-      onClick={toggleFullscreen}
-      style={{ cursor: 'pointer' }}
+      $isDynamic={isDynamic}
     >
       <Title>
         {title}
@@ -92,11 +98,13 @@ const ChartContainer = ({ title, children, fullWidth }) => {
           {isFullscreen ? '×' : '⛶'}
         </FullscreenButton>
       </Title>
-      {React.cloneElement(children, { 
-        isFullscreen,
-        key: `chart-${isFullscreen}`
-      })}
-    </Container>
+      <div>
+        {React.cloneElement(children, { 
+          isFullscreen,
+          key: `chart-${isFullscreen}`
+        })}
+      </div>
+    </ContainerComponent>
   );
 
   return (

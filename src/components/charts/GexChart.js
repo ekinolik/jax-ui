@@ -6,7 +6,7 @@ const GexChart = ({ asset }) => {
   const [dte, setDte] = useState(50);
 
   return (
-    <ChartContainer title="GEX" fullWidth>
+    <ChartContainer title="GEX" fullWidth isDynamic>
       <OptionChartContent
         dte={dte}
         onDteChange={setDte}
