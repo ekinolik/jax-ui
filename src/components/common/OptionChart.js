@@ -186,12 +186,13 @@ export const calculateBound = (maxValue) => {
 export const OptionChartContent = ({ 
   isFullscreen, 
   dte, 
-  onDteChange, 
+  onDteChange,
+  strikes,
+  onStrikesChange,
   asset,
-  chartType, // 'dex' or 'gex'
+  chartType,
   title
 }) => {
-  const [strikes, setStrikes] = useState(30);
   const [rawData, setRawData] = useState(null);
   const [chartData, setChartData] = useState([]);
   const [expirationDates, setExpirationDates] = useState([]);
@@ -274,7 +275,7 @@ export const OptionChartContent = ({
 
   const handleStrikesChange = (e) => {
     e.stopPropagation();
-    setStrikes(Number(e.target.value));
+    onStrikesChange(Number(e.target.value));
   };
 
   // Calculate max value from the data
