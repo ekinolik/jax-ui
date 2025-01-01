@@ -17,7 +17,7 @@ export const Container = styled.div`
   height: ${props => props.$isFullscreen ? '100vh' : '550px'};
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: ${props => props.$isFullscreen ? 'auto' : 'hidden'};
   
   &[data-fullscreen="true"] {
     position: fixed;
@@ -29,13 +29,15 @@ export const Container = styled.div`
     border-radius: 0;
     padding: 32px;
     height: 100vh;
+    overflow-y: auto;
   }
 `;
 
 const DynamicContainer = styled(Container)`
   height: ${props => props.$isFullscreen ? '100vh' : 'auto'};
   min-height: ${props => props.$isFullscreen ? '100vh' : '550px'};
-  max-height: ${props => props.$isFullscreen ? '100vh' : 'none'};
+  max-height: ${props => props.$isFullscreen ? 'none' : 'none'};
+  overflow: ${props => props.$isFullscreen ? 'auto' : 'hidden'};
 `;
 
 const Title = styled.h2`
