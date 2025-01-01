@@ -395,6 +395,7 @@ export const OptionChartContent = ({
           legendPosition: 'middle',
           legendOffset: -75
         }}
+        enableLabel={false}
         labelSkipWidth={12}
         labelSkipHeight={12}
         labelTextColor={{ from: 'color', modifiers: [['darker', 1.6]] }}
