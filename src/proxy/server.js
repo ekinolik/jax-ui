@@ -37,6 +37,23 @@ app.get('/api/dex', async (req, res) => {
   }
 });
 
+// Endpoint to get GEX data
+app.get('/api/gex', async (req, res) => {
+  try {
+    const { underlyingAsset, numStrikes } = req.query;
+    
+    const response = await jaxClient.getGexByStrikes({
+      underlyingAsset: underlyingAsset || 'SPY',
+      numStrikes: numStrikes ? parseInt(numStrikes) : 50
+    });
+
+    res.json(response);
+  } catch (error) {
+    console.error('Error fetching GEX data:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Endpoint to get last trade price
 app.get('/api/market/last-price', async (req, res) => {
   try {

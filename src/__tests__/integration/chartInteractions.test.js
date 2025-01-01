@@ -7,7 +7,7 @@ describe('Chart Interactions', () => {
     render(<App />);
     expect(screen.getByTestId('dex')).toBeInTheDocument();
     expect(screen.getByTestId('price')).toBeInTheDocument();
-    expect(screen.getByTestId('gamma-exposure-gex-chart')).toBeInTheDocument();
+    expect(screen.getByTestId('gex')).toBeInTheDocument();
   });
 
   it('updates all charts when asset changes', () => {
