@@ -2,3 +2,19 @@ node_modules
 
 # Don't ignore husky directory
 !.husky
+
+certs/
+*.pem
+*.key
+*.crt
+*.csr
+*.pem
+*.p12
+*.pfx
+*.der
+*.cer
+*.ca-bundle
+*.ca-cert
+*.ca-chain
+*.ca-chain.pem
+*.ca-chain.crt

@@ -2,21 +2,43 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { useJaxClient } = require('@ekinolik/jax-react-client');
+const fs = require('fs');
+const path = require('path');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Initialize the JAX client
-console.log('Initializing JAX client with config:', {
-  host: process.env.JAX_HOST || 'localhost:50051',
-  debug: true
+// Get absolute paths for certificates
+const certPath = path.join(__dirname, '../../certs');
+const clientCertPath = path.join(certPath, 'client.crt');
+const clientKeyPath = path.join(certPath, 'client.key');
+const caCertPath = path.join(certPath, 'ca.crt');
+
+console.log('Loading certificates from:', {
+  clientCertPath,
+  clientKeyPath,
+  caCertPath
 });
 
-const jaxClient = useJaxClient({
+// Initialize the JAX client
+const config = {
   host: process.env.JAX_HOST || 'localhost:50051',
-  debug: true
+  debug: true,
+  useTLS: true,
+  certPaths: {
+    cert: clientCertPath,
+    key: clientKeyPath,
+    ca: caCertPath
+  }
+};
+
+console.log('Initializing JAX client with config:', {
+  ...config,
+  certPaths: '<redacted>'
 });
+
+const jaxClient = useJaxClient(config);
 
 console.log('JAX client initialized');
 
