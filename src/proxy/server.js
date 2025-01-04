@@ -9,8 +9,8 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Get absolute paths for certificates
-const certPath = path.join(__dirname, '../../certs');
+// Get paths for certificates relative to current working directory
+const certPath = './certs';
 const clientCertPath = path.join(certPath, 'client.crt');
 const clientKeyPath = path.join(certPath, 'client.key');
 const caCertPath = path.join(certPath, 'ca.crt');
