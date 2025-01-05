@@ -105,7 +105,7 @@ export const transformApiData = (response, dte) => {
 
       const dataPoint = {
         strike: Number(strike),
-        spotPrice: spotPrice  // Add spot price to each data point
+        spotPrice: Number(spotPrice)  // Add spot price to each data point
       };
 
       let hasValidData = false;
@@ -194,7 +194,6 @@ export const transformLineData = (chartData) => {
 };
 
 export const OptionChartContent = ({ 
-  isFullscreen, 
   dte, 
   onDteChange,
   strikes,
@@ -203,6 +202,7 @@ export const OptionChartContent = ({
   chartType,
   title
 }) => {
+  const isFullscreen = false;
   const [rawData, setRawData] = useState(null);
   const [chartData, setChartData] = useState([]);
   const [expirationDates, setExpirationDates] = useState([]);
@@ -256,9 +256,8 @@ export const OptionChartContent = ({
     // Extract unique dates
     const dates = new Set();
     transformedData.forEach(dataPoint => {
-      console.log('Processing dataPoint:', JSON.stringify(dataPoint, null, 2));
       Object.keys(dataPoint).forEach(key => {
-        if (key !== 'strike') {
+        if (key !== 'strike' && key !== 'spotPrice') {
           const date = key.replace(/^(calls|puts)_/, '');
           dates.add(date);
         }
@@ -266,13 +265,6 @@ export const OptionChartContent = ({
     });
     
     const sortedDates = Array.from(dates).sort();
-    console.log('Chart setup:', {
-      transformedData: JSON.stringify(transformedData, null, 2),
-      sortedDates,
-      chartKeys: sortedDates.flatMap(date => [`calls_${date}`, `puts_${date}`]),
-      numDataPoints: transformedData.length,
-      samplePoint: transformedData[0]
-    });
     
     setExpirationDates(sortedDates);
     setChartData(transformedData);
@@ -414,7 +406,7 @@ export const OptionChartContent = ({
             labelSkipWidth={12}
             labelSkipHeight={12}
             labelTextColor={{ from: 'color', modifiers: [['darker', 1.6]] }}
-            animate={true}
+            animate={false}
             motionStiffness={90}
             motionDamping={15}
             tooltip={({ id, value, color }) => (
@@ -461,11 +453,16 @@ export const OptionChartContent = ({
                     }
                   }
                 ],
-                data: expirationDates.map((date, index) => ({
-                  id: date,
-                  label: date,
-                  color: CHART_COLORS[index % CHART_COLORS.length]
-                }))
+                data: (() => {
+                  const legendData = expirationDates
+                    .filter(date => date.match(/^\d{4}-\d{2}-\d{2}$/)) // Only include valid dates
+                    .map((date, index) => ({
+                      id: date,
+                      label: date,
+                      color: CHART_COLORS[index % CHART_COLORS.length]
+                    }));
+                  return legendData;
+                })()
               }
             ]}
             enableGridX={true}
