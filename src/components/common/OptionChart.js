@@ -414,6 +414,26 @@ export const OptionChartContent = ({
               }))
             }
           ]}
+          enableGridX={true}
+          enableGridY={true}
+          gridXValues={[0]}
+          theme={{
+            grid: {
+              line: {
+                stroke: '#e0e0e0',
+                strokeWidth: 1
+              }
+            }
+          }}
+          markers={[
+            {
+              axis: 'x',
+              value: 0,
+              lineStyle: { stroke: '#a0a0a0', strokeWidth: 1 },
+              legend: '',
+              legendOrientation: 'vertical'
+            }
+          ]}
         />
       </div>
     </div>
