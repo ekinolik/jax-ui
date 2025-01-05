@@ -503,17 +503,13 @@ export const OptionChartContent = ({
             axisLeft={null}
             enableGridX={false}
             enableGridY={false}
-            lineWidth={3}
-            enablePoints={true}
-            pointSize={6}
-            pointColor="#ff0000"
+            lineWidth={1}
+            enablePoints={false}
             colors="#ff0000"
             enableArea={false}
-            useMesh={true}
+            useMesh={false}
             animate={false}
-            layers={['lines', 'points', 'mesh']}
-            pointBorderWidth={2}
-            pointBorderColor="#ffffff"
+            layers={['lines']}
           />
         </ChartLayer>
       </ChartContainer>
