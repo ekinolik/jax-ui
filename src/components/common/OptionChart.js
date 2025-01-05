@@ -84,6 +84,10 @@ export const transformApiData = (response, dte) => {
     return [];
   }
 
+  // Get spot price from response
+  const spotPrice = response.u?.[0] || null;
+  console.log('Spot price:', spotPrice);
+
   // Calculate the maximum allowed date based on DTE
   const today = new Date();
   const maxDate = new Date(today);
@@ -99,7 +103,8 @@ export const transformApiData = (response, dte) => {
       }
 
       const dataPoint = {
-        strike: Number(strike)
+        strike: Number(strike),
+        spotPrice: spotPrice  // Add spot price to each data point
       };
 
       let hasValidData = false;
@@ -167,13 +172,17 @@ export const calculateBound = (maxValue) => {
 export const transformLineData = (chartData) => {
   if (!chartData || chartData.length === 0) return [];
 
-  // Find the index where strike is closest to 154.00
-  const targetIndex = chartData.findIndex(point => point.strike >= 154.00);
+  // Get spot price from the first data point
+  const spotPrice = chartData[0]?.spotPrice;
+  if (!spotPrice) return [];
+
+  // Find the index where strike is closest to spot price
+  const targetIndex = chartData.findIndex(point => point.strike >= spotPrice);
   const index = targetIndex === -1 ? chartData.length - 1 : targetIndex;
 
   // Create a single line with 3 points
   const constantLine = {
-    id: 'constant-154',
+    id: 'spot-price',
     data: [
       { x: 0, y: index },
       { x: 1, y: index },
@@ -484,7 +493,10 @@ export const OptionChartContent = ({
         <ChartLayer $isOverlay>
           <ResponsiveLine
             data={lineData}
-            margin={margin}
+            margin={{
+              ...margin,
+              left: margin.left - 50  // Extend further left
+            }}
             xScale={{
               type: 'linear',
               min: 0,
