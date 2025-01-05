@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ResponsiveBar } from '@nivo/bar';
+import { ResponsiveLine } from '@nivo/line';
 import styled from 'styled-components';
 
 export const ControlsContainer = styled.div`
@@ -38,6 +39,20 @@ export const SelectGroup = styled.div`
     font-size: 12px;
     color: #666;
   }
+`;
+
+export const ChartContainer = styled.div`
+  position: relative;
+  height: ${props => props.height}px;
+`;
+
+export const ChartLayer = styled.div`
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: ${props => props.$isOverlay ? 'none' : 'auto'};
 `;
 
 export const DTE_OPTIONS = [20, 50, 180, 360, 500];
@@ -146,6 +161,27 @@ export const calculateBound = (maxValue) => {
   } else { // Under 1M
     return Math.ceil(maxValue * 2); // Double the range for small values
   }
+};
+
+// New function to transform data for line chart
+export const transformLineData = (chartData) => {
+  if (!chartData || chartData.length === 0) return [];
+
+  // Find the index where strike is closest to 154.00
+  const targetIndex = chartData.findIndex(point => point.strike >= 154.00);
+  const index = targetIndex === -1 ? chartData.length - 1 : targetIndex;
+
+  // Create a single line with 3 points
+  const constantLine = {
+    id: 'constant-154',
+    data: [
+      { x: 0, y: index },
+      { x: 1, y: index },
+      { x: 2, y: index }
+    ]
+  };
+
+  return [constantLine];
 };
 
 export const OptionChartContent = ({ 
@@ -262,9 +298,22 @@ export const OptionChartContent = ({
   const chartHeight = Math.max(baseHeight, heightPerStrike * chartData.length);
   const containerHeight = chartHeight + 80; // Add back padding and controls height
 
+  // Get min and max strikes for line chart Y axis
+  const strikeRange = chartData.length > 0 ? {
+    min: Math.min(...chartData.map(d => d.strike)),
+    max: Math.max(...chartData.map(d => d.strike))
+  } : { min: 0, max: 100 };
+
+  const lineData = transformLineData(chartData);
+  console.log('Line Chart Data:', lineData);
+
   if (error) {
     return <div>Error loading {chartType.toUpperCase()} data: {error}</div>;
   }
+
+  const margin = isFullscreen ? 
+    { top: 40, right: 160, bottom: 100, left: 100 } : 
+    { top: 20, right: 30, bottom: 65, left: 80 };
 
   return (
     <div style={{ height: containerHeight }}>
@@ -300,142 +349,174 @@ export const OptionChartContent = ({
           </Select>
         </SelectGroup>
       </ControlsContainer>
-      <div style={{ height: chartHeight }}>
-        <ResponsiveBar
-          data={chartData}
-          keys={expirationDates.flatMap(date => [`calls_${date}`, `puts_${date}`])}
-          indexBy="strike"
-          layout="horizontal"
-          margin={isFullscreen ? 
-            { top: 40, right: 160, bottom: 100, left: 100 } : 
-            { top: 20, right: 30, bottom: 65, left: 80 }
-          }
-          padding={0.3}
-          valueScale={{ 
-            type: 'linear',
-            min: -bound,
-            max: bound,
-            stacked: true,
-            reverse: false
-          }}
-          indexScale={{ type: 'band', round: true }}
-          colors={({ id }) => {
-            // Extract the date from the key (remove 'calls_' or 'puts_' prefix)
-            const date = id.replace(/^(calls|puts)_/, '');
-            // Use nivo's color scheme but index by unique dates
-            const dateIndex = expirationDates.indexOf(date);
-            return CHART_COLORS[dateIndex % CHART_COLORS.length];
-          }}
-          borderColor={{ from: 'color', modifiers: [['darker', 1.6]] }}
-          axisTop={null}
-          axisRight={null}
-          axisBottom={{
-            tickSize: 5,
-            tickPadding: 5,
-            tickRotation: 0,
-            legend: title,
-            legendPosition: 'middle',
-            legendOffset: 45,
-            format: formatValue,
-            tickValues: [
-              -bound,           // Minimum value
-              -bound * 2/3,     // One-third from min
-              -bound * 1/3,     // Two-thirds from min
-              0,                // Center
-              bound * 1/3,      // One-third from center
-              bound * 2/3,      // Two-thirds from center
-              bound            // Maximum value
-            ]
-          }}
-          axisLeft={{
-            tickSize: 15,
-            tickPadding: 15,
-            tickRotation: 0,
-            format: value => value.toFixed(2),
-            legend: 'Strike Price',
-            legendPosition: 'middle',
-            legendOffset: -75
-          }}
-          enableLabel={false}
-          labelSkipWidth={12}
-          labelSkipHeight={12}
-          labelTextColor={{ from: 'color', modifiers: [['darker', 1.6]] }}
-          animate={true}
-          motionStiffness={90}
-          motionDamping={15}
-          tooltip={({ id, value, color }) => (
-            <div style={{ 
-              padding: 12,
-              color: '#333',
-              background: '#fff',
-              boxShadow: '0 3px 8px rgba(0,0,0,0.24)',
-              borderRadius: '6px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
-            }}>
-              <div style={{
-                width: 12,
-                height: 12,
-                background: color,
-                borderRadius: '2px'
-              }} />
-              <div>
-                <strong>{id.split('_')[0]}</strong> ({id.split('_')[1]}): {formatValue(value)}
+      <ChartContainer height={chartHeight}>
+        <ChartLayer>
+          <ResponsiveBar
+            data={chartData}
+            keys={expirationDates.flatMap(date => [`calls_${date}`, `puts_${date}`])}
+            indexBy="strike"
+            layout="horizontal"
+            margin={margin}
+            padding={0.3}
+            valueScale={{ 
+              type: 'linear',
+              min: -bound,
+              max: bound,
+              stacked: true,
+              reverse: false
+            }}
+            indexScale={{ type: 'band', round: true }}
+            colors={({ id }) => {
+              const date = id.replace(/^(calls|puts)_/, '');
+              const dateIndex = expirationDates.indexOf(date);
+              return CHART_COLORS[dateIndex % CHART_COLORS.length];
+            }}
+            borderColor={{ from: 'color', modifiers: [['darker', 1.6]] }}
+            axisTop={null}
+            axisRight={null}
+            axisBottom={{
+              tickSize: 5,
+              tickPadding: 5,
+              tickRotation: 0,
+              legend: title,
+              legendPosition: 'middle',
+              legendOffset: 45,
+              format: formatValue,
+              tickValues: [
+                -bound,
+                -bound * 2/3,
+                -bound * 1/3,
+                0,
+                bound * 1/3,
+                bound * 2/3,
+                bound
+              ]
+            }}
+            axisLeft={{
+              tickSize: 15,
+              tickPadding: 15,
+              tickRotation: 0,
+              format: value => value.toFixed(2),
+              legend: 'Strike Price',
+              legendPosition: 'middle',
+              legendOffset: -75
+            }}
+            enableLabel={false}
+            labelSkipWidth={12}
+            labelSkipHeight={12}
+            labelTextColor={{ from: 'color', modifiers: [['darker', 1.6]] }}
+            animate={true}
+            motionStiffness={90}
+            motionDamping={15}
+            tooltip={({ id, value, color }) => (
+              <div style={{ 
+                padding: 12,
+                color: '#333',
+                background: '#fff',
+                boxShadow: '0 3px 8px rgba(0,0,0,0.24)',
+                borderRadius: '6px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <div style={{
+                  width: 12,
+                  height: 12,
+                  background: color,
+                  borderRadius: '2px'
+                }} />
+                <div>
+                  <strong>{id.split('_')[0]}</strong> ({id.split('_')[1]}): {formatValue(value)}
+                </div>
               </div>
-            </div>
-          )}
-          legends={[
-            {
-              dataFrom: 'keys',
-              anchor: 'top-right',
-              direction: 'column',
-              justify: false,
-              translateX: 80,
-              translateY: 0,
-              itemsSpacing: 2,
-              itemWidth: 140,
-              itemHeight: 20,
-              itemDirection: 'left-to-right',
-              itemOpacity: 0.85,
-              symbolSize: 20,
-              effects: [
-                {
-                  on: 'hover',
-                  style: {
-                    itemOpacity: 1
+            )}
+            legends={[
+              {
+                dataFrom: 'keys',
+                anchor: 'top-right',
+                direction: 'column',
+                justify: false,
+                translateX: 80,
+                translateY: 0,
+                itemsSpacing: 2,
+                itemWidth: 140,
+                itemHeight: 20,
+                itemDirection: 'left-to-right',
+                itemOpacity: 0.85,
+                symbolSize: 20,
+                effects: [
+                  {
+                    on: 'hover',
+                    style: {
+                      itemOpacity: 1
+                    }
                   }
-                }
-              ],
-              data: expirationDates.map((date, index) => ({
-                id: date,
-                label: date,
-                color: CHART_COLORS[index % CHART_COLORS.length]
-              }))
-            }
-          ]}
-          enableGridX={true}
-          enableGridY={true}
-          gridXValues={[0]}
-          theme={{
-            grid: {
-              line: {
-                stroke: '#e0e0e0',
-                strokeWidth: 1
+                ],
+                data: expirationDates.map((date, index) => ({
+                  id: date,
+                  label: date,
+                  color: CHART_COLORS[index % CHART_COLORS.length]
+                }))
               }
-            }
-          }}
-          markers={[
-            {
-              axis: 'x',
-              value: 0,
-              lineStyle: { stroke: '#a0a0a0', strokeWidth: 1 },
-              legend: '',
-              legendOrientation: 'vertical'
-            }
-          ]}
-        />
-      </div>
+            ]}
+            enableGridX={true}
+            enableGridY={true}
+            gridXValues={[0]}
+            theme={{
+              grid: {
+                line: {
+                  stroke: '#e0e0e0',
+                  strokeWidth: 1
+                }
+              }
+            }}
+            markers={[
+              {
+                axis: 'x',
+                value: 0,
+                lineStyle: { stroke: '#a0a0a0', strokeWidth: 1 },
+                legend: '',
+                legendOrientation: 'vertical'
+              }
+            ]}
+          />
+        </ChartLayer>
+        <ChartLayer $isOverlay>
+          <ResponsiveLine
+            data={lineData}
+            margin={margin}
+            xScale={{
+              type: 'linear',
+              min: 0,
+              max: 2
+            }}
+            yScale={{
+              type: 'point',
+              min: 0,
+              max: chartData.length - 1,
+              reverse: true
+            }}
+            curve="linear"
+            axisTop={null}
+            axisRight={null}
+            axisBottom={null}
+            axisLeft={null}
+            enableGridX={false}
+            enableGridY={false}
+            lineWidth={3}
+            enablePoints={true}
+            pointSize={6}
+            pointColor="#ff0000"
+            colors="#ff0000"
+            enableArea={false}
+            useMesh={true}
+            animate={false}
+            layers={['lines', 'points', 'mesh']}
+            pointBorderWidth={2}
+            pointBorderColor="#ffffff"
+          />
+        </ChartLayer>
+      </ChartContainer>
     </div>
   );
 }; 
