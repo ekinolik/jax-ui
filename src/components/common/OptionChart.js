@@ -134,41 +134,6 @@ export const transformApiData = (response, dte) => {
   return transformedData;
 };
 
-export const theme = {
-  axis: {
-    ticks: {
-      text: {
-        fontSize: 12,
-        fill: '#666',
-        fontWeight: 500
-      }
-    },
-    legend: {
-      text: {
-        fontSize: 13,
-        fill: '#666',
-        fontWeight: 600
-      }
-    }
-  },
-  grid: {
-    line: {
-      stroke: '#e0e0e0',
-      strokeWidth: 1
-    }
-  },
-  tooltip: {
-    container: {
-      background: '#ffffff',
-      boxShadow: '0 3px 8px rgba(0,0,0,0.24)',
-      borderRadius: '6px',
-      padding: '12px',
-      fontSize: '12px',
-      border: 'none'
-    }
-  }
-};
-
 export const calculateBound = (maxValue) => {
   if (maxValue >= 1000) { // Over 1B
     return Math.ceil(maxValue * 1.1);
@@ -343,7 +308,7 @@ export const OptionChartContent = ({
           layout="horizontal"
           margin={isFullscreen ? 
             { top: 40, right: 160, bottom: 100, left: 100 } : 
-            { top: 20, right: 130, bottom: 65, left: 80 }
+            { top: 20, right: 30, bottom: 65, left: 80 }
           }
           padding={0.3}
           valueScale={{ 
@@ -426,7 +391,7 @@ export const OptionChartContent = ({
               anchor: 'top-right',
               direction: 'column',
               justify: false,
-              translateX: 120,
+              translateX: 80,
               translateY: 0,
               itemsSpacing: 2,
               itemWidth: 140,
