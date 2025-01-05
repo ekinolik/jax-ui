@@ -86,6 +86,7 @@ export const transformApiData = (response, dte) => {
 
   // Get spot price from response
   const spotPrice = response.u?.[0] || null;
+  //const spotPrice = 250.00;
   console.log('Spot price:', spotPrice);
 
   // Calculate the maximum allowed date based on DTE
@@ -173,20 +174,19 @@ export const transformLineData = (chartData) => {
   if (!chartData || chartData.length === 0) return [];
 
   // Get spot price from the first data point
-  const spotPrice = chartData[0]?.spotPrice;
+  const spotPrice = Number(chartData[0]?.spotPrice);
   if (!spotPrice) return [];
 
-  // Find the index where strike is closest to spot price
-  const targetIndex = chartData.findIndex(point => point.strike >= spotPrice);
-  const index = targetIndex === -1 ? chartData.length - 1 : targetIndex;
+  console.log('Spot price for line:', spotPrice);
+  console.log('Available strikes:', chartData.map(d => d.strike).join(', '));
 
-  // Create a single line with 3 points
+  // Create a single line with 3 points using actual spot price for Y
   const constantLine = {
     id: 'spot-price',
     data: [
-      { x: 0, y: index },
-      { x: 1, y: index },
-      { x: 2, y: index }
+      { x: 0, y: spotPrice },
+      { x: 1, y: spotPrice },
+      { x: 2, y: spotPrice }
     ]
   };
 
@@ -496,6 +496,8 @@ export const OptionChartContent = ({
             margin={{
               ...margin,
               left: margin.left - 50  // Extend further left
+              //bottom: margin.bottom + 20, // Line bottom with the middle of the lowest bar
+              //top: margin.top + 20 // Line top with the middle of the highest bar
             }}
             xScale={{
               type: 'linear',
@@ -503,10 +505,10 @@ export const OptionChartContent = ({
               max: 2
             }}
             yScale={{
-              type: 'point',
-              min: 0,
-              max: chartData.length - 1,
-              reverse: true
+              type: 'linear',
+              min: strikeRange.min,
+              max: strikeRange.max,
+              reverse: false
             }}
             curve="linear"
             axisTop={null}
