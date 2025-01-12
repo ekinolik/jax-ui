@@ -112,7 +112,9 @@ const PriceChartContent = ({ isFullscreen, timeRange, onTimeRangeChange, asset }
     const fetchLastPrice = async () => {
       setLoading(true);
       try {
-        const response = await fetch(`${process.env.REACT_APP_PROXY_URL || 'http://localhost:3001'}/api/market/last-price?symbol=${debouncedAsset}`);
+        const proxyUrl = window.__RUNTIME_CONFIG__.PROXY_URL;
+        console.log('Using proxy URL:', proxyUrl);
+        const response = await fetch(`${proxyUrl}/api/market/last-price?symbol=${debouncedAsset}`);
         
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);

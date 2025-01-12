@@ -1,4 +1,7 @@
 // jest-dom adds custom jest matchers for asserting on DOM nodes.
+// allows you to do things like:
+// expect(element).toHaveTextContent(/react/i)
+// learn more: https://github.com/testing-library/jest-dom
 import '@testing-library/jest-dom';
 import { configure } from '@testing-library/react';
 import React from 'react';
@@ -20,6 +23,11 @@ global.ResizeObserver = class ResizeObserver {
   observe() {}
   unobserve() {}
   disconnect() {}
+};
+
+// Mock runtime configuration for tests
+window.__RUNTIME_CONFIG__ = {
+  PROXY_URL: 'http://localhost:3001'
 };
 
 // Clean up after each test

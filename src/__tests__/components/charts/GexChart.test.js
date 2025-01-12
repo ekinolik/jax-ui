@@ -14,7 +14,7 @@ describe('GexChart', () => {
 
   it('displays correct DTE options', () => {
     render(<GexChart {...defaultProps} />);
-    const dteSelect = screen.getByRole('combobox', { name: /dte/i });
+    const dteSelect = screen.getByLabelText('DTE:');
     expect(dteSelect).toBeInTheDocument();
     expect(screen.getByRole('option', { name: '20 days' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: '50 days' })).toBeInTheDocument();
@@ -23,7 +23,7 @@ describe('GexChart', () => {
 
   it('displays correct strike options', () => {
     render(<GexChart {...defaultProps} />);
-    const strikesSelect = screen.getByRole('combobox', { name: /strikes/i });
+    const strikesSelect = screen.getByLabelText('Strikes:');
     expect(strikesSelect).toBeInTheDocument();
     expect(screen.getByRole('option', { name: '20 strikes' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: '30 strikes' })).toBeInTheDocument();

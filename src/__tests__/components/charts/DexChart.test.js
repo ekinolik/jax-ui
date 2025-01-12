@@ -1,12 +1,12 @@
 import React from 'react';
-import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import DexChart from '../../../components/charts/DexChart';
 
-describe('DexChart', () => {
-  const defaultProps = {
-    asset: 'AAPL'
-  };
+const defaultProps = {
+  asset: 'AAPL'
+};
 
+describe('DexChart', () => {
   it('renders without crashing', () => {
     render(<DexChart {...defaultProps} />);
     expect(screen.getByText('DEX')).toBeInTheDocument();
@@ -25,7 +25,6 @@ describe('DexChart', () => {
     await act(async () => {
       fireEvent.change(dteSelect, { target: { value: '180' } });
     });
-
     expect(dteSelect.value).toBe('180');
   });
 
@@ -36,7 +35,6 @@ describe('DexChart', () => {
     await act(async () => {
       fireEvent.change(strikesSelect, { target: { value: '50' } });
     });
-
     expect(strikesSelect.value).toBe('50');
   });
 }); 
