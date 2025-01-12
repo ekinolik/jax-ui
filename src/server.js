@@ -1,8 +1,12 @@
-require('dotenv').config();
+const path = require('path');
+const dotenv = require('dotenv');
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
 const { useJaxClient } = require('@ekinolik/jax-react-client');
+
+// Load environment variables from .env file
+const envPath = path.resolve(process.cwd(), '.env');
+dotenv.config({ path: envPath });
 
 const app = express();
 
@@ -31,14 +35,10 @@ app.use((err, req, res, next) => {
 
 // Serve static files
 const buildPath = path.resolve(process.cwd(), 'build');
-console.log('Serving static files from:', buildPath);
 app.use(express.static(buildPath));
 
 // Get paths for certificates relative to current working directory
-const certPath = './certs';
-const clientCertPath = path.join(certPath, 'client.crt');
-const clientKeyPath = path.join(certPath, 'client.key');
-const caCertPath = path.join(certPath, 'ca.crt');
+const certPath = process.env.CERT_PATH || path.resolve(process.cwd(), 'certs');
 
 // Initialize the JAX client
 const config = {
@@ -46,11 +46,18 @@ const config = {
   debug: process.env.NODE_ENV === 'development',
   useTLS: true,
   certPaths: {
-    cert: clientCertPath,
-    key: clientKeyPath,
-    ca: caCertPath
+    cert: process.env.CLIENT_CERT_PATH || path.resolve(certPath, 'client.crt'),
+    key: process.env.CLIENT_KEY_PATH || path.resolve(certPath, 'client.key'),
+    ca: process.env.CA_CERT_PATH || path.resolve(certPath, 'ca.crt')
   }
 };
+
+// Log server configuration
+console.log('\nServer configuration:');
+console.log('- Environment:', process.env.NODE_ENV || 'production');
+console.log('- Port:', process.env.PORT || 3000);
+console.log('- JAX Host:', config.host);
+console.log('- Certificate path:', certPath);
 
 let jaxClient;
 try {
