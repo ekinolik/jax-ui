@@ -5,6 +5,7 @@ import Sidebar from './components/layout/Sidebar';
 import PriceChart from './components/charts/PriceChart';
 import DexChart from './components/charts/DexChart';
 import GexChart from './components/charts/GexChart';
+import LineChart from './components/charts/LineChart';
 
 console.log('App component is rendering');
 
@@ -52,6 +53,9 @@ const App = () => {
           <ChartRow>
             <ChartColumn>
               <PriceChart asset={asset} />
+            </ChartColumn>
+            <ChartColumn>
+              <LineChart />
             </ChartColumn>
           </ChartRow>
           <ChartRow>
