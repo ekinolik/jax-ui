@@ -227,9 +227,7 @@ export const OptionChartContent = ({
       try {
         // Fetch option data
         console.log(`Fetching ${chartType.toUpperCase()} data for asset:`, debouncedAsset);
-        const proxyUrl = window.__RUNTIME_CONFIG__.PROXY_URL;
-        console.log('Using proxy URL:', proxyUrl); // Add logging to debug
-        const dataResponse = await fetch(`${proxyUrl}/api/${chartType}?underlyingAsset=${debouncedAsset}&numStrikes=${strikes}`);
+        const dataResponse = await fetch(`/api/${chartType}?underlyingAsset=${debouncedAsset}&numStrikes=${strikes}`);
         
         if (!dataResponse.ok) {
           throw new Error(`HTTP error! status: ${dataResponse.status}`);

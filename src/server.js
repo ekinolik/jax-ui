@@ -1,13 +1,38 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const { useJaxClient } = require('@ekinolik/jax-react-client');
-const fs = require('fs');
 const path = require('path');
+const { useJaxClient } = require('@ekinolik/jax-react-client');
 
 const app = express();
-app.use(cors());
-app.use(express.json());
+
+// Configure Express
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+
+// Add request logging
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.url}`);
+  console.log('Request headers:', JSON.stringify(req.headers, null, 2));
+  next();
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Error:', err);
+  if (err.type === 'entity.too.large') {
+    return res.status(413).json({ error: 'Payload too large' });
+  }
+  if (err.status === 431) {
+    return res.status(431).json({ error: 'Request header fields too large' });
+  }
+  res.status(500).json({ error: 'Internal server error' });
+});
+
+// Serve static files
+const buildPath = path.resolve(process.cwd(), 'build');
+console.log('Serving static files from:', buildPath);
+app.use(express.static(buildPath));
 
 // Get paths for certificates relative to current working directory
 const certPath = './certs';
@@ -15,16 +40,10 @@ const clientCertPath = path.join(certPath, 'client.crt');
 const clientKeyPath = path.join(certPath, 'client.key');
 const caCertPath = path.join(certPath, 'ca.crt');
 
-console.log('Loading certificates from:', {
-  clientCertPath,
-  clientKeyPath,
-  caCertPath
-});
-
 // Initialize the JAX client
 const config = {
   host: process.env.JAX_HOST || 'localhost:50051',
-  debug: true,
+  debug: process.env.NODE_ENV === 'development',
   useTLS: true,
   certPaths: {
     cert: clientCertPath,
@@ -33,16 +52,16 @@ const config = {
   }
 };
 
-console.log('Initializing JAX client with config:', {
-  ...config,
-  certPaths: '<redacted>'
-});
+let jaxClient;
+try {
+  jaxClient = useJaxClient(config);
+  console.log('JAX client initialized successfully');
+} catch (error) {
+  console.error('Failed to initialize JAX client:', error);
+  process.exit(1);
+}
 
-const jaxClient = useJaxClient(config);
-
-console.log('JAX client initialized');
-
-// Endpoint to get DEX data
+// API endpoints
 app.get('/api/dex', async (req, res) => {
   try {
     const { underlyingAsset, numStrikes } = req.query;
@@ -59,7 +78,6 @@ app.get('/api/dex', async (req, res) => {
   }
 });
 
-// Endpoint to get GEX data
 app.get('/api/gex', async (req, res) => {
   try {
     const { underlyingAsset, numStrikes } = req.query;
@@ -76,7 +94,6 @@ app.get('/api/gex', async (req, res) => {
   }
 });
 
-// Endpoint to get last trade price
 app.get('/api/market/last-price', async (req, res) => {
   try {
     const { symbol } = req.query;
@@ -89,10 +106,9 @@ app.get('/api/market/last-price', async (req, res) => {
       ticker: symbol
     });
 
-    // Transform the response to include the price field
     const transformedResponse = {
-      price: Number(response?.u?.[0]),  // Price is first element in u array
-      timestamp: Number(response?.u?.[2]),  // Timestamp is third element
+      price: Number(response?.u?.[0]),
+      timestamp: Number(response?.u?.[2]),
       symbol: symbol
     };
 
@@ -103,21 +119,17 @@ app.get('/api/market/last-price', async (req, res) => {
 
     res.json(transformedResponse);
   } catch (error) {
-    console.error('Detailed error in last trade price endpoint:', {
-      message: error.message,
-      code: error.code,
-      details: error.details,
-      stack: error.stack
-    });
-    res.status(500).json({ 
-      error: error.message,
-      code: error.code,
-      details: error.details 
-    });
+    console.error('Error in last trade price endpoint:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 
-const PORT = process.env.PROXY_PORT || 3001;
+// Handle React routing, return all requests to React app
+app.get('*', (req, res) => {
+  res.sendFile(path.resolve(process.cwd(), 'build', 'index.html'));
+});
+
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Proxy server running on port ${PORT}`);
+  console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
 }); 

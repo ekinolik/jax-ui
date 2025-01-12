@@ -112,9 +112,7 @@ const PriceChartContent = ({ isFullscreen, timeRange, onTimeRangeChange, asset }
     const fetchLastPrice = async () => {
       setLoading(true);
       try {
-        const proxyUrl = window.__RUNTIME_CONFIG__.PROXY_URL;
-        console.log('Using proxy URL:', proxyUrl);
-        const response = await fetch(`${proxyUrl}/api/market/last-price?symbol=${debouncedAsset}`);
+        const response = await fetch(`/api/market/last-price?symbol=${debouncedAsset}`);
         
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);

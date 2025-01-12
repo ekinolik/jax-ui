@@ -27,7 +27,7 @@ global.ResizeObserver = class ResizeObserver {
 
 // Mock runtime configuration for tests
 window.__RUNTIME_CONFIG__ = {
-  PROXY_URL: 'http://localhost:3001'
+  PROXY_URL: 'http://localhost:3000'
 };
 
 // Clean up after each test
