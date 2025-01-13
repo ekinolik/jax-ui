@@ -12,7 +12,64 @@ dotenv.config({ path: envPath });
 
 const app = express();
 
-// Configure Express
+// Configure basic authentication
+const basicAuth = require('express-basic-auth');
+
+// Load users from auth file
+const loadUsers = () => {
+  const authPath = process.env.AUTH_FILE_PATH || path.resolve(process.cwd(), 'config/auth.txt');
+  try {
+    if (!fs.existsSync(authPath)) {
+      console.warn(`Auth file not found at ${authPath}. Using default credentials.`);
+      return { 'admin': 'changeme' };
+    }
+    
+    const authContent = fs.readFileSync(authPath, 'utf8');
+    const users = {};
+    
+    authContent.split('\n').forEach(line => {
+      line = line.trim();
+      if (line && !line.startsWith('#')) {
+        const [username, passwordHash] = line.split(':');
+        if (username && passwordHash) {
+          users[username.trim()] = passwordHash.trim();
+        }
+      }
+    });
+    
+    if (Object.keys(users).length === 0) {
+      console.warn('No valid users found in auth file. Using default credentials.');
+      return { 'admin': 'changeme' };
+    }
+    
+    return users;
+  } catch (error) {
+    console.error('Error reading auth file:', error);
+    return { 'admin': 'changeme' };
+  }
+};
+
+// Configure Express with file-based authentication
+app.use(basicAuth({
+    users: loadUsers(),
+    challenge: true,
+    realm: 'JAX UI',
+    authorizer: (username, password, cb) => {
+      const users = loadUsers();
+      const userHash = users[username];
+      
+      if (!userHash) {
+        return cb(null, false);
+      }
+      
+      // Compare the hashed password
+      const crypto = require('crypto');
+      const hash = crypto.createHash('sha256').update(password).digest('hex');
+      cb(null, hash === userHash);
+    },
+    authorizeAsync: true
+}));
+
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 

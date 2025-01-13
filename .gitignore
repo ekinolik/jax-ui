@@ -2,6 +2,7 @@ build/
 node_modules/
 package/
 build_tmp/
+config/*
 
 # Don't ignore husky directory
 !.husky
