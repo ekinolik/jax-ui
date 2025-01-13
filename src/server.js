@@ -2,6 +2,8 @@ const path = require('path');
 const dotenv = require('dotenv');
 const express = require('express');
 const cors = require('cors');
+const https = require('https');
+const fs = require('fs');
 const { useJaxClient } = require('@ekinolik/jax-react-client');
 
 // Load environment variables from .env file
@@ -37,11 +39,11 @@ app.use((err, req, res, next) => {
 const buildPath = path.resolve(process.cwd(), 'build');
 app.use(express.static(buildPath));
 
-// Get paths for certificates relative to current working directory
+// Get paths for certificates
 const certPath = process.env.CERT_PATH || path.resolve(process.cwd(), 'certs');
 
-// Initialize the JAX client
-const config = {
+// Initialize the JAX client with its mTLS certificates (unchanged)
+const jaxConfig = {
   host: process.env.JAX_HOST || 'localhost:50051',
   debug: process.env.NODE_ENV === 'development',
   useTLS: true,
@@ -52,16 +54,22 @@ const config = {
   }
 };
 
+// HTTPS configuration for browser-to-UI connection
+const httpsOptions = {
+  key: fs.readFileSync(process.env.UI_KEY_PATH || path.resolve(certPath, 'ui.key')),
+  cert: fs.readFileSync(process.env.UI_CERT_PATH || path.resolve(certPath, 'ui.crt'))
+};
+
 // Log server configuration
 console.log('\nServer configuration:');
 console.log('- Environment:', process.env.NODE_ENV || 'production');
 console.log('- Port:', process.env.PORT || 3000);
-console.log('- JAX Host:', config.host);
+console.log('- JAX Host:', jaxConfig.host);
 console.log('- Certificate path:', certPath);
 
 let jaxClient;
 try {
-  jaxClient = useJaxClient(config);
+  jaxClient = useJaxClient(jaxConfig);
   console.log('JAX client initialized successfully');
 } catch (error) {
   console.error('Failed to initialize JAX client:', error);
@@ -137,6 +145,10 @@ app.get('*', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
+
+// Create HTTPS server
+const server = https.createServer(httpsOptions, app);
+
+server.listen(PORT, () => {
+  console.log(`HTTPS Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
 }); 
