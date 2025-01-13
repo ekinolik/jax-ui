@@ -74,11 +74,5 @@
     "url": "^0.11.4",
     "util": "^0.12.5"
   },
-  "proxy": {
-    "/api": {
-      "target": "https://localhost:3000",
-      "secure": false,
-      "changeOrigin": true
-    }
-  }
+  "proxy": "https://localhost:3000"
 }
