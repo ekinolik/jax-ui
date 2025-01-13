@@ -6,7 +6,7 @@ BUILD_DIR = build_tmp
 LINUX_TARBALL = $(PACKAGE_DIR)/jax-ui-linux-x64.tar.gz
 MAC_TARBALL = $(PACKAGE_DIR)/jax-ui-mac-arm64.tar.gz
 
-package: clean
+package: clean test
 	# Create build and package directories
 	mkdir -p $(BUILD_DIR)
 	mkdir -p $(PACKAGE_DIR)
@@ -53,6 +53,11 @@ package: clean
 	# Clean up build directory
 	rm -rf $(BUILD_DIR)
 	rm -rf build
+
+test:
+	npm run test -- --watchAll=false
+	npm run test:server -- --all
+
 
 clean:
 	rm -rf $(BUILD_DIR)

@@ -206,6 +206,11 @@ const PORT = process.env.PORT || 3000;
 // Create HTTPS server
 const server = https.createServer(httpsOptions, app);
 
-server.listen(PORT, () => {
-  console.log(`HTTPS Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
-}); 
+// Only start the server if this file is being run directly (not required as a module)
+if (require.main === module) {
+  server.listen(PORT, () => {
+    console.log(`HTTPS Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
+  });
+}
+
+module.exports = { app, server }; 

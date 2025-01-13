@@ -25,6 +25,7 @@
     "start:prod": "npm run build && cross-env NODE_ENV=production node src/server.js",
     "build": "react-app-rewired build",
     "test": "react-app-rewired test --no-deprecation --passWithNoTests",
+    "test:server": "jest src/__tests__/server.test.js",
     "eject": "react-scripts eject",
     "prepare": "husky install"
   },
@@ -66,12 +67,14 @@
     "crypto-browserify": "^3.12.1",
     "https-browserify": "^1.0.0",
     "husky": "^8.0.0",
+    "jest": "^27.5.1",
     "os-browserify": "^0.3.0",
     "path-browserify": "^1.0.1",
     "process": "^0.11.10",
     "react-app-rewired": "^2.2.1",
     "stream-browserify": "^3.0.0",
     "stream-http": "^3.2.0",
+    "supertest": "^7.0.0",
     "url": "^0.11.4",
     "util": "^0.12.5"
   },
