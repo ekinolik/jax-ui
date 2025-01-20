@@ -200,7 +200,8 @@ export const OptionChartContent = ({
   onStrikesChange,
   asset,
   chartType,
-  title
+  title,
+  onLoadingChange
 }) => {
   const isFullscreen = false;
   const [rawData, setRawData] = useState(null);
@@ -225,6 +226,7 @@ export const OptionChartContent = ({
 
     const fetchData = async () => {
       try {
+        onLoadingChange?.(true); // Set loading state to true when fetching starts
         // Fetch option data
         console.log(`Fetching ${chartType.toUpperCase()} data for asset:`, debouncedAsset);
         const dataResponse = await fetch(`/api/${chartType}?underlyingAsset=${debouncedAsset}&numStrikes=${strikes}`);
@@ -240,11 +242,13 @@ export const OptionChartContent = ({
       } catch (err) {
         console.error('Error fetching data:', err);
         setError(`Error: ${err.message}`);
+      } finally {
+        onLoadingChange?.(false); // Set loading state to false when fetching ends
       }
     };
 
     fetchData();
-  }, [debouncedAsset, strikes, chartType]);
+  }, [debouncedAsset, strikes, chartType, onLoadingChange]);
 
   // Transform data whenever DTE or rawData changes
   useEffect(() => {

@@ -18,6 +18,7 @@ export const Container = styled.div`
   display: flex;
   flex-direction: column;
   overflow: ${props => props.$isFullscreen ? 'auto' : 'hidden'};
+  position: relative;
   
   &[data-fullscreen="true"] {
     position: fixed;
@@ -31,6 +32,21 @@ export const Container = styled.div`
     height: 100vh;
     overflow-y: auto;
   }
+`;
+
+const LoadingOverlay = styled.div`
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 1.2rem;
+  color: #666;
+  z-index: 10;
 `;
 
 const DynamicContainer = styled(Container)`
@@ -61,7 +77,7 @@ const FullscreenButton = styled.button`
   }
 `;
 
-const ChartContainer = ({ title, children, fullWidth, isDynamic = false }) => {
+const ChartContainer = ({ title, children, fullWidth, isDynamic = false, loadingText }) => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const testId = title?.toLowerCase().replace(/\s+/g, '-');
   const ContainerComponent = isDynamic ? DynamicContainer : Container;
@@ -106,6 +122,7 @@ const ChartContainer = ({ title, children, fullWidth, isDynamic = false }) => {
           key: `chart-${isFullscreen}`
         })}
       </div>
+      {loadingText && <LoadingOverlay>{loadingText}</LoadingOverlay>}
     </ContainerComponent>
   );
 
